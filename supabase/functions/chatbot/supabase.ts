@@ -277,7 +277,7 @@ export async function getChatHistoryWithSession(userId: string, sessionId: strin
   }
 
   // Get all messages for this session with artifact information
-    const { data: messages, error: messagesError } = await supabase
+  const { data: rawMessages, error: messagesError } = await supabase
     .from('chat_messages')
     .select(`
       id, 
@@ -297,6 +297,38 @@ export async function getChatHistoryWithSession(userId: string, sessionId: strin
     throw new Error(`Failed to get chat history: ${messagesError.message}`)
   }
 
+  // Transform messages to match the frontend expected format
+  const transformedMessages = (rawMessages || []).map(msg => {
+    if (msg.is_artifact && msg.artifacts) {
+      // Transform artifact message to match ChatResponse format
+      return {
+        message_id: msg.id,
+        type: 'artifact',
+        content: null,
+        artifact_data: msg.artifacts.template_data,
+        artifact_info: {
+          id: msg.artifacts.id,
+          action: 'created', // Historical messages are always 'created' in this context
+          version: msg.artifacts.version,
+          title: msg.artifacts.title
+        },
+        session_id: sessionId,
+        created_at: msg.created_at
+      }
+    } else {
+      // Transform regular text message
+      return {
+        message_id: msg.id,
+        type: 'text',
+        content: msg.content,
+        session_id: sessionId,
+        role: msg.role,
+        message_type: msg.message_type,
+        created_at: msg.created_at
+      }
+    }
+  })
+
   return {
     session: {
       id: session.id,
@@ -305,6 +337,6 @@ export async function getChatHistoryWithSession(userId: string, sessionId: strin
       project_name: session.projects?.name || null,
       created_at: session.created_at
     },
-    messages: messages || []
+    messages: transformedMessages
   }
 }
