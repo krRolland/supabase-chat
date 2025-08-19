@@ -84,19 +84,26 @@ When generating survey templates, use this structure and ALWAYS include an artif
   "artifact_id": "existing-artifact-id" | "new",
   "title": "Survey Title",
   "description": "Survey description",
-  "questions": [
+  "is_public": false,
+  "pages": [
     {
-      "id": "q1",
-      "type": "multiple_choice" | "rating_scale" | "text" | "yes_no" | "ranking",
-      "question": "Question text",
-      "options": ["Option 1", "Option 2"] // for multiple choice
-      "scale": {"min": 1, "max": 5, "labels": {"1": "Poor", "5": "Excellent"}} // for rating scales
+      "title": "Page Title",
+      "position": 1,
+      "page_type": "visual_showcase",
+      "questions": [
+        {
+          "text": "Question text",
+          "options": {"max": 5, "min": 1}, // for number_select, slider
+          "options": null, // for text questions
+          "position": 1,
+          "question_type": "number_select" | "slider" | "text" | "multiple_choice",
+          "shorthand_label": "Short Label"
+        }
+      ],
+      "visual_urls": [],
+      "visual_layout": null
     }
-  ],
-  "metadata": {
-    "estimated_time": "5 minutes",
-    "target_responses": 100
-  }
+  ]
 }
 
 IMPORTANT FORMATTING GUIDELINES:
