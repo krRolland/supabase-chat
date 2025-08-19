@@ -115,7 +115,6 @@ export async function getSessionArtifacts(sessionId: string): Promise<SessionArt
 // Enhanced artifact saving with versioning
 export async function saveArtifact(
   sessionId: string,
-  messageId: string,
   templateData: any,
   artifactType: string = APP_CONFIG.defaultArtifactType
 ): Promise<ArtifactInfo> {
@@ -125,68 +124,72 @@ export async function saveArtifact(
 
     // Check if this is an update to existing artifact
     if (artifactId && artifactId !== 'new') {
-      // Mark existing artifact as inactive
-      await supabase
-        .from('artifacts')
-        .update({ is_active: false })
-        .eq('id', artifactId)
-        .eq('session_id', sessionId)
-
-      // Get the current version
+      // Get the current version of the existing artifact
       const { data: existingArtifact } = await supabase
         .from('artifacts')
-        .select('version')
+        .select('version, template_name')
         .eq('id', artifactId)
         .eq('session_id', sessionId)
-        .order('version', { ascending: false })
-        .limit(1)
+        .eq('is_active', true)
         .single()
 
-      const newVersion = (existingArtifact?.version || 0) + 1
+      if (existingArtifact) {
+        // Mark existing artifact as inactive
+        await supabase
+          .from('artifacts')
+          .update({ is_active: false })
+          .eq('id', artifactId)
+          .eq('session_id', sessionId)
 
-      // Create new version with same ID
-      const { error } = await supabase
-        .from('artifacts')
-        .insert({
-          id: artifactId, // Keep same ID for versioning
-          session_id: sessionId,
-          message_id: messageId,
-          template_data: templateData,
-          template_name: templateName,
-          version: newVersion,
-          is_active: true
-        })
+        const newVersion = existingArtifact.version + 1
 
-      if (error) {
-        console.error('Failed to update artifact:', error)
-        throw new Error(`Failed to update artifact: ${error.message}`)
+        // Create new artifact record with new UUID but reference the same logical artifact
+        const { data: newArtifact, error } = await supabase
+          .from('artifacts')
+          .insert({
+            session_id: sessionId,
+            template_data: templateData,
+            template_name: templateName,
+            version: newVersion,
+            is_active: true,
+            parent_artifact_id: artifactId // Track the original artifact ID
+          })
+          .select('id')
+          .single()
+
+        if (error) {
+          console.error('Failed to update artifact:', error)
+          throw new Error(`Failed to update artifact: ${error.message}`)
+        }
+
+        console.log(`Successfully updated artifact: ${templateName} (v${newVersion})`)
+        return { id: newArtifact.id, action: 'updated', version: newVersion, template_name: templateName }
+      } else {
+        // Artifact not found, treat as new
+        console.log(`Artifact ${artifactId} not found, creating new artifact`)
       }
-
-      console.log(`Successfully updated artifact: ${templateName} (v${newVersion})`)
-      return { id: artifactId, action: 'updated', version: newVersion, template_name: templateName }
-    } else {
-      // Create new artifact
-      const { data: newArtifact, error } = await supabase
-        .from('artifacts')
-        .insert({
-          session_id: sessionId,
-          message_id: messageId,
-          template_data: templateData,
-          template_name: templateName,
-          version: 1,
-          is_active: true
-        })
-        .select('id')
-        .single()
-
-      if (error) {
-        console.error('Failed to create artifact:', error)
-        throw new Error(`Failed to create artifact: ${error.message}`)
-      }
-
-      console.log(`Successfully created artifact: ${templateName} (v1)`)
-      return { id: newArtifact.id, action: 'created', version: 1, template_name: templateName }
     }
+    
+    // Create new artifact (either artifactId is 'new' or existing artifact not found)
+    const { data: newArtifact, error } = await supabase
+      .from('artifacts')
+      .insert({
+        session_id: sessionId,
+        template_data: templateData,
+        template_name: templateName,
+        version: 1,
+        is_active: true
+      })
+      .select('id')
+      .single()
+
+    if (error) {
+      console.error('Failed to create artifact:', error)
+      throw new Error(`Failed to create artifact: ${error.message}`)
+    }
+
+    console.log(`Successfully created artifact: ${templateName} (v1)`)
+    return { id: newArtifact.id, action: 'created', version: 1, template_name: templateName }
   } catch (e) {
     console.error('Error in saveArtifact:', e)
     throw e

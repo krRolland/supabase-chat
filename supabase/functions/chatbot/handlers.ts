@@ -113,7 +113,7 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
       
       // Save artifact and create artifact message
       try {
-        const artifactInfo = await saveArtifact(sessionId, '', structuredOutput)
+        const artifactInfo = await saveArtifact(sessionId, structuredOutput)
         
         const artifactMessageId = await saveMessage(
           sessionId,
@@ -141,7 +141,21 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
         
         console.log(`Created artifact message: ${artifactMessageId} for artifact: ${artifactInfo.id}`)
       } catch (e) {
-        console.log('Failed to save artifact:', e)
+        console.error('Failed to save artifact:', e)
+        // Add error message to response so user knows artifact failed to save
+        const errorMessageId = await saveMessage(
+          sessionId, 
+          'assistant', 
+          'I encountered an error while saving the artifact. The content was generated but could not be stored.', 
+          'error'
+        )
+        
+        messages.push({
+          message_id: errorMessageId,
+          type: 'text',
+          content: 'I encountered an error while saving the artifact. The content was generated but could not be stored.',
+          session_id: sessionId
+        })
       }
       
       // Create text message after artifact (if exists)
