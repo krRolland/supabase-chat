@@ -12,10 +12,13 @@ export interface ChatResponse {
     message_id: string
     type: 'text' | 'artifact'
     content: string | null
+    role: 'user' | 'assistant'
+    created_at: string
     artifact_data?: any
     artifact_info?: {
       id: string
-      action: 'created' | 'updated'
+      artifact_id: string
+      action: 'created'
       version: number
       title: string
     }
@@ -47,7 +50,8 @@ export interface ProjectContext {
 
 export interface ArtifactInfo {
   id: string // This will be the artifact_group_id
-  action: 'created' | 'updated'
+  artifact_id: string // The database primary key for this specific version
+  action: 'created'
   version: number
   title: string
 }

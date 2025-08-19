@@ -135,15 +135,15 @@ export async function saveArtifact(
 ): Promise<ArtifactInfo> {
   try {
     const title = templateData.title || `${artifactType}_${Date.now()}`
-    const artifactId = templateData.artifact_id
+    const groupId = templateData.group_id
 
     // Check if this is an update to existing artifact
-    if (artifactId && artifactId !== 'new') {
+    if (groupId && groupId !== 'new') {
       // Find the latest version using artifact_group_id
       const { data: latestVersion } = await supabase
         .from('artifacts')
         .select('version, title')
-        .eq('artifact_group_id', artifactId)
+        .eq('artifact_group_id', groupId)
         .eq('session_id', sessionId)
         .order('version', { ascending: false })
         .limit(1)
@@ -157,7 +157,7 @@ export async function saveArtifact(
           .from('artifacts')
           .insert({
             session_id: sessionId,
-            artifact_group_id: artifactId, // Same group ID
+            artifact_group_id: groupId, // Same group ID
             test_id: null, // Will be set later when linked to test
             template_data: templateData,
             title: title,
@@ -173,14 +173,15 @@ export async function saveArtifact(
 
         console.log(`Successfully updated artifact: ${title} (v${newVersion})`)
         return { 
-          id: artifactId, // Return the group ID (not database ID)
-          action: 'updated', 
+          id: groupId, // Return the group ID (not database ID)
+          artifact_id: newArtifact.id, // Return the database primary key
+          action: 'created', 
           version: newVersion, 
           title: title 
         }
       } else {
         // Artifact not found, treat as new
-        console.log(`Artifact ${artifactId} not found, creating new artifact`)
+        console.log(`Artifact ${groupId} not found, creating new artifact`)
       }
     }
     
@@ -208,6 +209,7 @@ export async function saveArtifact(
     console.log(`Successfully created artifact: ${title} (v1)`)
     return { 
       id: newArtifactGroupId, // Return the group ID
+      artifact_id: newArtifact.id, // Return the database primary key
       action: 'created', 
       version: 1, 
       title: title 
@@ -310,7 +312,7 @@ export async function getChatHistoryWithSession(userId: string, sessionId: strin
       is_artifact, 
       artifact_id, 
       created_at,
-      artifacts(artifact_group_id, title, template_data, version)
+      artifacts(id, artifact_group_id, title, template_data, version)
     `)
     .eq('session_id', sessionId)
     .order('created_at', { ascending: true })
@@ -330,6 +332,7 @@ export async function getChatHistoryWithSession(userId: string, sessionId: strin
         artifact_data: msg.artifacts.template_data,
         artifact_info: {
           id: msg.artifacts.artifact_group_id,
+          artifact_id: msg.artifacts.id,
           action: 'created', // Historical messages are always 'created' in this context
           version: msg.artifacts.version,
           title: msg.artifacts.title
@@ -345,7 +348,6 @@ export async function getChatHistoryWithSession(userId: string, sessionId: strin
         content: msg.content,
         session_id: sessionId,
         role: msg.role,
-        message_type: msg.type,
         created_at: msg.created_at
       }
     }

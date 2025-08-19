@@ -54,10 +54,10 @@ export function extractArtifact(text: string): any | null {
     try {
       const parsed = JSON.parse(jsonStr)
       
-      // Check if it's an artifact (has artifact_id field)
+      // Check if it's an artifact (has group_id field)
       if (parsed && 
           typeof parsed === 'object' && 
-          parsed.artifact_id !== undefined) {
+          parsed.group_id !== undefined) {
         return parsed
       }
     } catch (e) {
@@ -79,9 +79,9 @@ Key capabilities:
 3. Results Analysis: Interpret survey data and provide actionable insights
 4. Methodology Advice: Guide users on research best practices and statistical validity
 
-When generating survey templates, use this structure and ALWAYS include both artifact_id and title fields:
+When generating survey templates, use this structure and ALWAYS include both group_id and title fields:
 {
-  "artifact_id": "existing-artifact-id" | "new",
+  "group_id": "existing-group-id" | "new",
   "title": "Descriptive Survey Title",
   "description": "Survey description",
   "is_public": false,
@@ -109,20 +109,20 @@ When generating survey templates, use this structure and ALWAYS include both art
 CRITICAL REQUIREMENTS:
 - ALWAYS include a meaningful "title" field that describes the survey's purpose
 - The title should be descriptive and user-friendly (e.g., "Customer Satisfaction Survey", "Product Feature Feedback", "User Experience Assessment")
-- If updating an existing artifact, use its artifact_id from the list below
-- If creating something completely new, use artifact_id: "new"
-- Both artifact_id and title fields are mandatory for proper frontend display
+- If updating an existing artifact, use its group_id from the list below
+- If creating something completely new, use group_id: "new"
+- Both group_id and title fields are mandatory for proper frontend display
 
 IMPORTANT FORMATTING GUIDELINES:
 - When creating survey templates, refer to them as "survey templates", "polls", "questionnaires", or "surveys" - never explicitly mention "JSON"
 - Do not use markdown code fences (backticks or code blocks) around the template structure
 - Present the template data cleanly without technical formatting
-- Always include both the artifact_id and title fields in your response`
+- Always include both the group_id and title fields in your response`
 
   // Add existing artifacts context
   if (existingArtifacts && existingArtifacts.length > 0) {
     const artifactsList = existingArtifacts.map(artifact => 
-      `- artifact_id: ${artifact.id}, title: "${artifact.title}", version: ${artifact.version}`
+      `- group_id: ${artifact.id}, title: "${artifact.title}", version: ${artifact.version}`
     ).join('\n')
     
     prompt += `\n\nExisting artifacts in this conversation:\n${artifactsList}\n`

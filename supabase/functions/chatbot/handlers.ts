@@ -107,6 +107,8 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
           message_id: beforeMessageId,
           type: 'text',
           content: beforeText,
+          role: 'assistant',
+          created_at: new Date().toISOString(),
           session_id: sessionId
         })
       }
@@ -129,10 +131,13 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
           message_id: artifactMessageId,
           type: 'artifact',
           content: null,
+          role: 'assistant',
+          created_at: new Date().toISOString(),
           artifact_data: structuredOutput,
           artifact_info: {
             id: artifactInfo.id,
-            action: artifactInfo.action as 'created' | 'updated',
+            artifact_id: artifactInfo.artifact_id,
+            action: artifactInfo.action,
             version: artifactInfo.version,
             title: artifactInfo.title
           },
@@ -154,6 +159,8 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
           message_id: errorMessageId,
           type: 'text',
           content: 'I encountered an error while saving the artifact. The content was generated but could not be stored.',
+          role: 'assistant',
+          created_at: new Date().toISOString(),
           session_id: sessionId
         })
       }
