@@ -95,7 +95,7 @@ export async function getSessionArtifacts(sessionId: string): Promise<SessionArt
   try {
     const { data: artifacts, error } = await supabase
       .from('artifacts')
-      .select('id, template_name, version, template_data')
+      .select('id, title, version, template_data')
       .eq('session_id', sessionId)
       .eq('is_active', true)
       .order('created_at', { ascending: false })
@@ -119,7 +119,7 @@ export async function saveArtifact(
   artifactType: string = APP_CONFIG.defaultArtifactType
 ): Promise<ArtifactInfo> {
   try {
-    const templateName = templateData.title || `${artifactType}_${Date.now()}`
+    const title = templateData.title || `${artifactType}_${Date.now()}`
     const artifactId = templateData.artifact_id
 
     // Check if this is an update to existing artifact
@@ -127,7 +127,7 @@ export async function saveArtifact(
       // Get the current version of the existing artifact
       const { data: existingArtifact } = await supabase
         .from('artifacts')
-        .select('version, template_name')
+        .select('version, title')
         .eq('id', artifactId)
         .eq('session_id', sessionId)
         .eq('is_active', true)
@@ -149,7 +149,7 @@ export async function saveArtifact(
           .insert({
             session_id: sessionId,
             template_data: templateData,
-            template_name: templateName,
+            title: title,
             version: newVersion,
             is_active: true,
             parent_artifact_id: artifactId // Track the original artifact ID
@@ -162,8 +162,8 @@ export async function saveArtifact(
           throw new Error(`Failed to update artifact: ${error.message}`)
         }
 
-        console.log(`Successfully updated artifact: ${templateName} (v${newVersion})`)
-        return { id: newArtifact.id, action: 'updated', version: newVersion, template_name: templateName }
+        console.log(`Successfully updated artifact: ${title} (v${newVersion})`)
+        return { id: newArtifact.id, action: 'updated', version: newVersion, title: title }
       } else {
         // Artifact not found, treat as new
         console.log(`Artifact ${artifactId} not found, creating new artifact`)
@@ -176,7 +176,7 @@ export async function saveArtifact(
       .insert({
         session_id: sessionId,
         template_data: templateData,
-        template_name: templateName,
+        title: title,
         version: 1,
         is_active: true
       })
@@ -188,8 +188,8 @@ export async function saveArtifact(
       throw new Error(`Failed to create artifact: ${error.message}`)
     }
 
-    console.log(`Successfully created artifact: ${templateName} (v1)`)
-    return { id: newArtifact.id, action: 'created', version: 1, template_name: templateName }
+    console.log(`Successfully created artifact: ${title} (v1)`)
+    return { id: newArtifact.id, action: 'created', version: 1, title: title }
   } catch (e) {
     console.error('Error in saveArtifact:', e)
     throw e
@@ -277,7 +277,7 @@ export async function getChatHistoryWithSession(userId: string, sessionId: strin
   }
 
   // Get all messages for this session with artifact information
-  const { data: messages, error: messagesError } = await supabase
+    const { data: messages, error: messagesError } = await supabase
     .from('chat_messages')
     .select(`
       id, 
@@ -288,7 +288,7 @@ export async function getChatHistoryWithSession(userId: string, sessionId: strin
       is_artifact, 
       artifact_id, 
       created_at,
-      artifacts(id, template_name, template_data, version, is_active)
+      artifacts(id, title, template_data, version, is_active)
     `)
     .eq('session_id', sessionId)
     .order('created_at', { ascending: true })

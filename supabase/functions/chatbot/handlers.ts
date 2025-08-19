@@ -134,7 +134,7 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
             id: artifactInfo.id,
             action: artifactInfo.action as 'created' | 'updated',
             version: artifactInfo.version,
-            template_name: structuredOutput.title || structuredOutput.name || 'Untitled Artifact'
+            title: artifactInfo.title
           },
           session_id: sessionId
         })

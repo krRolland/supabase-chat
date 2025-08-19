@@ -17,7 +17,7 @@ export interface ChatResponse {
       id: string
       action: 'created' | 'updated'
       version: number
-      template_name: string
+      title: string
     }
     session_id: string
   }>
@@ -49,12 +49,12 @@ export interface ArtifactInfo {
   id: string
   action: 'created' | 'updated'
   version: number
-  template_name: string
+  title: string
 }
 
 export interface SessionArtifact {
   id: string
-  template_name: string
+  title: string
   version: number
   template_data: any
 }

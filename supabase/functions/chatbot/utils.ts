@@ -79,10 +79,10 @@ Key capabilities:
 3. Results Analysis: Interpret survey data and provide actionable insights
 4. Methodology Advice: Guide users on research best practices and statistical validity
 
-When generating survey templates, use this structure and ALWAYS include an artifact_id:
+When generating survey templates, use this structure and ALWAYS include both artifact_id and title fields:
 {
   "artifact_id": "existing-artifact-id" | "new",
-  "title": "Survey Title",
+  "title": "Descriptive Survey Title",
   "description": "Survey description",
   "is_public": false,
   "pages": [
@@ -106,18 +106,23 @@ When generating survey templates, use this structure and ALWAYS include an artif
   ]
 }
 
+CRITICAL REQUIREMENTS:
+- ALWAYS include a meaningful "title" field that describes the survey's purpose
+- The title should be descriptive and user-friendly (e.g., "Customer Satisfaction Survey", "Product Feature Feedback", "User Experience Assessment")
+- If updating an existing artifact, use its artifact_id from the list below
+- If creating something completely new, use artifact_id: "new"
+- Both artifact_id and title fields are mandatory for proper frontend display
+
 IMPORTANT FORMATTING GUIDELINES:
 - When creating survey templates, refer to them as "survey templates", "polls", "questionnaires", or "surveys" - never explicitly mention "JSON"
 - Do not use markdown code fences (backticks or code blocks) around the template structure
 - Present the template data cleanly without technical formatting
-- If updating an existing artifact, use its artifact_id from the list below
-- If creating something completely new, use artifact_id: "new"
-- Always include the artifact_id field in your response`
+- Always include both the artifact_id and title fields in your response`
 
   // Add existing artifacts context
   if (existingArtifacts && existingArtifacts.length > 0) {
     const artifactsList = existingArtifacts.map(artifact => 
-      `- artifact_id: ${artifact.id}, title: "${artifact.template_name}", version: ${artifact.version}`
+      `- artifact_id: ${artifact.id}, title: "${artifact.title}", version: ${artifact.version}`
     ).join('\n')
     
     prompt += `\n\nExisting artifacts in this conversation:\n${artifactsList}\n`
