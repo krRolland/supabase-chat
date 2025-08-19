@@ -93,26 +93,41 @@ export async function saveMessage(
 // Get existing artifacts for session context
 export async function getSessionArtifacts(sessionId: string): Promise<SessionArtifact[]> {
   try {
+    // Get only the latest version of each artifact group
     const { data: artifacts, error } = await supabase
       .from('artifacts')
-      .select('id, title, version, template_data')
+      .select('artifact_group_id, title, version, template_data')
       .eq('session_id', sessionId)
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
+      .order('artifact_group_id, version', { ascending: false })
 
     if (error) {
       console.error('Failed to get session artifacts:', error)
       return []
     }
 
-    return artifacts || []
+    // Filter to get only the latest version of each group
+    const latestVersions = new Map()
+    artifacts?.forEach(artifact => {
+      const groupId = artifact.artifact_group_id
+      if (!latestVersions.has(groupId) || 
+          latestVersions.get(groupId).version < artifact.version) {
+        latestVersions.set(groupId, artifact)
+      }
+    })
+
+    return Array.from(latestVersions.values()).map(artifact => ({
+      id: artifact.artifact_group_id,
+      title: artifact.title,
+      version: artifact.version,
+      template_data: artifact.template_data
+    }))
   } catch (e) {
     console.error('Error in getSessionArtifacts:', e)
     return []
   }
 }
 
-// Enhanced artifact saving with versioning
+// Enhanced artifact saving with versioning using artifact_group_id
 export async function saveArtifact(
   sessionId: string,
   templateData: any,
@@ -124,35 +139,29 @@ export async function saveArtifact(
 
     // Check if this is an update to existing artifact
     if (artifactId && artifactId !== 'new') {
-      // Get the current version of the existing artifact
-      const { data: existingArtifact } = await supabase
+      // Find the latest version using artifact_group_id
+      const { data: latestVersion } = await supabase
         .from('artifacts')
         .select('version, title')
-        .eq('id', artifactId)
+        .eq('artifact_group_id', artifactId)
         .eq('session_id', sessionId)
-        .eq('is_active', true)
+        .order('version', { ascending: false })
+        .limit(1)
         .single()
 
-      if (existingArtifact) {
-        // Mark existing artifact as inactive
-        await supabase
-          .from('artifacts')
-          .update({ is_active: false })
-          .eq('id', artifactId)
-          .eq('session_id', sessionId)
+      if (latestVersion) {
+        const newVersion = latestVersion.version + 1
 
-        const newVersion = existingArtifact.version + 1
-
-        // Create new artifact record with new UUID but reference the same logical artifact
+        // Create new version with same artifact_group_id
         const { data: newArtifact, error } = await supabase
           .from('artifacts')
           .insert({
             session_id: sessionId,
+            artifact_group_id: artifactId, // Same group ID
+            test_id: null, // Will be set later when linked to test
             template_data: templateData,
             title: title,
-            version: newVersion,
-            is_active: true,
-            parent_artifact_id: artifactId // Track the original artifact ID
+            version: newVersion
           })
           .select('id')
           .single()
@@ -163,22 +172,30 @@ export async function saveArtifact(
         }
 
         console.log(`Successfully updated artifact: ${title} (v${newVersion})`)
-        return { id: newArtifact.id, action: 'updated', version: newVersion, title: title }
+        return { 
+          id: artifactId, // Return the group ID (not database ID)
+          action: 'updated', 
+          version: newVersion, 
+          title: title 
+        }
       } else {
         // Artifact not found, treat as new
         console.log(`Artifact ${artifactId} not found, creating new artifact`)
       }
     }
     
-    // Create new artifact (either artifactId is 'new' or existing artifact not found)
+    // Create new artifact (either artifactId is 'new' or existing not found)
+    const newArtifactGroupId = crypto.randomUUID()
+    
     const { data: newArtifact, error } = await supabase
       .from('artifacts')
       .insert({
         session_id: sessionId,
+        artifact_group_id: newArtifactGroupId,
+        test_id: null, // Will be set later
         template_data: templateData,
         title: title,
-        version: 1,
-        is_active: true
+        version: 1
       })
       .select('id')
       .single()
@@ -189,7 +206,12 @@ export async function saveArtifact(
     }
 
     console.log(`Successfully created artifact: ${title} (v1)`)
-    return { id: newArtifact.id, action: 'created', version: 1, title: title }
+    return { 
+      id: newArtifactGroupId, // Return the group ID
+      action: 'created', 
+      version: 1, 
+      title: title 
+    }
   } catch (e) {
     console.error('Error in saveArtifact:', e)
     throw e
@@ -288,7 +310,7 @@ export async function getChatHistoryWithSession(userId: string, sessionId: strin
       is_artifact, 
       artifact_id, 
       created_at,
-      artifacts(id, title, template_data, version, is_active)
+      artifacts(artifact_group_id, title, template_data, version)
     `)
     .eq('session_id', sessionId)
     .order('created_at', { ascending: true })
@@ -307,7 +329,7 @@ export async function getChatHistoryWithSession(userId: string, sessionId: strin
         content: null,
         artifact_data: msg.artifacts.template_data,
         artifact_info: {
-          id: msg.artifacts.id,
+          id: msg.artifacts.artifact_group_id,
           action: 'created', // Historical messages are always 'created' in this context
           version: msg.artifacts.version,
           title: msg.artifacts.title
@@ -323,7 +345,7 @@ export async function getChatHistoryWithSession(userId: string, sessionId: strin
         content: msg.content,
         session_id: sessionId,
         role: msg.role,
-        type: msg.type,
+        message_type: msg.type,
         created_at: msg.created_at
       }
     }

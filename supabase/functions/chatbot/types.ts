@@ -46,14 +46,14 @@ export interface ProjectContext {
 }
 
 export interface ArtifactInfo {
-  id: string
+  id: string // This will be the artifact_group_id
   action: 'created' | 'updated'
   version: number
   title: string
 }
 
 export interface SessionArtifact {
-  id: string
+  id: string // artifact_group_id
   title: string
   version: number
   template_data: any
