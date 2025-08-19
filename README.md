@@ -54,20 +54,27 @@ supabase functions deploy chatbot
 
 ### 3. Test the Function
 
-Update the values in `test-chatbot.js` and run:
+Update the values in `test-chatbot-complete.js` and run:
 
 ```bash
-node test-chatbot.js
+node test-chatbot-complete.js
 ```
+
+This comprehensive test script will verify:
+- ✅ Starting new chats
+- ✅ Adding messages to existing chats  
+- ✅ Getting list of all chats
+- ✅ Retrieving chat history
+- ✅ Error handling
 
 ## 📡 API Usage
 
-### Endpoint
+### Chat Operations (POST)
 ```
 POST /functions/v1/chatbot
 ```
 
-### Headers
+**Headers:**
 ```json
 {
   "Content-Type": "application/json",
@@ -76,7 +83,7 @@ POST /functions/v1/chatbot
 }
 ```
 
-### Request Body
+**Request Body:**
 ```json
 {
   "message": "Your message to the chatbot",
@@ -86,7 +93,7 @@ POST /functions/v1/chatbot
 }
 ```
 
-### Response
+**Response:**
 ```json
 {
   "response": "Chatbot's text response",
@@ -101,30 +108,150 @@ POST /functions/v1/chatbot
 }
 ```
 
-## 🎯 Use Cases
+### Chat Management (GET)
 
-### 1. Survey Design Consultation
+#### Get All Chats
+```
+GET /functions/v1/chatbot?action=list
+```
+
+**Response:**
 ```json
 {
-  "message": "I need help creating questions for testing a new mobile app concept",
-  "message_type": "advice"
+  "chats": [
+    {
+      "id": "session_uuid",
+      "title": "Chat Title",
+      "type": "general",
+      "project_name": "Project Name",
+      "message_count": 12,
+      "created_at": "2024-01-15T10:30:00Z",
+      "updated_at": "2024-01-15T11:45:00Z"
+    }
+  ]
 }
 ```
 
-### 2. Template Generation
+#### Get Chat History
+```
+GET /functions/v1/chatbot?action=history&session_id=SESSION_UUID
+```
+
+**Response:**
 ```json
 {
-  "message": "Create a JSON survey template for user satisfaction with delivery times",
-  "message_type": "template"
+  "session": {
+    "id": "session_uuid",
+    "title": "Chat Title",
+    "type": "general",
+    "project_name": "Project Name",
+    "created_at": "2024-01-15T10:30:00Z"
+  },
+  "messages": [
+    {
+      "id": "message_uuid",
+      "role": "user",
+      "content": "Message content",
+      "message_type": "conversation",
+      "created_at": "2024-01-15T10:30:00Z"
+    }
+  ]
 }
 ```
 
-### 3. Results Analysis
-```json
-{
-  "message": "Here are my survey results: [data]. What insights can you provide?",
-  "message_type": "analysis"
+## 🎯 Frontend Integration
+
+### Complete Chat Interface Functions
+
+```javascript
+// 1. Start a new chat
+async function startNewChat(firstMessage, projectId = null) {
+  const response = await fetch('/functions/v1/chatbot', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${userToken}`,
+      'Content-Type': 'application/json',
+      'apikey': supabaseAnonKey
+    },
+    body: JSON.stringify({
+      message: firstMessage,
+      project_id: projectId
+      // No session_id = creates new chat
+    })
+  });
+  
+  return await response.json(); // Returns new session_id
 }
+
+// 2. Add message to existing chat
+async function addMessageToChat(message, sessionId) {
+  const response = await fetch('/functions/v1/chatbot', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${userToken}`,
+      'Content-Type': 'application/json',
+      'apikey': supabaseAnonKey
+    },
+    body: JSON.stringify({
+      message: message,
+      session_id: sessionId
+    })
+  });
+  
+  return await response.json();
+}
+
+// 3. Get list of all chats
+async function getAllChats() {
+  const response = await fetch('/functions/v1/chatbot?action=list', {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${userToken}`,
+      'apikey': supabaseAnonKey
+    }
+  });
+  
+  return await response.json();
+  // Returns: { chats: [{ id, title, message_count, created_at, ... }] }
+}
+
+// 4. Access old chat (get all messages)
+async function getChat(sessionId) {
+  const response = await fetch(`/functions/v1/chatbot?action=history&session_id=${sessionId}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${userToken}`,
+      'apikey': supabaseAnonKey
+    }
+  });
+  
+  return await response.json();
+  // Returns: { session: {...}, messages: [...] }
+}
+```
+
+### Usage Examples
+
+```javascript
+// Start a new conversation
+const newChat = await startNewChat("Help me create a survey for my app");
+console.log("New chat ID:", newChat.session_id);
+
+// Continue the conversation
+const response = await addMessageToChat(
+  "Can you create a JSON template for user satisfaction questions?", 
+  newChat.session_id
+);
+
+// Get all user's chats for sidebar
+const allChats = await getAllChats();
+allChats.chats.forEach(chat => {
+  console.log(`${chat.title} (${chat.message_count} messages)`);
+});
+
+// Load an old conversation
+const oldChat = await getChat("existing-session-uuid");
+console.log("Chat history:", oldChat.messages);
 ```
 
 ## 🔒 Security Features
@@ -184,6 +311,9 @@ Generated templates follow this structure:
 - ✅ **Session Management**: Working with persistent history
 - ✅ **Template Generation**: Automatic JSON template detection and storage
 - ✅ **Project Context**: Support for project-specific conversations
+- ✅ **Chat List API**: Get all user's chat sessions
+- ✅ **Chat History API**: Retrieve full conversation history
+- ✅ **Complete Frontend Integration**: All 4 core functions implemented
 - ⏳ **Results Analysis**: Basic implementation (can be enhanced)
 - ⏳ **Rate Limiting**: Basic error handling (can be enhanced)
 - ⏳ **Fine-tuning Preparation**: Data collection structure in place
