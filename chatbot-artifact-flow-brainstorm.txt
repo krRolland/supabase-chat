@@ -1,0 +1,1093 @@
+# Chatbot Artifact Saving - Data Flow Brainstorming
+=====================================================
+
+## Overview
+This document outlines the complete data flow for our concept testing chatbot, from user input to artifact saving and response delivery.
+
+## 1. USER INPUT (Frontend → Chatbot Edge Function)
+=================================================
+
+### What we expect from the user:
+```json
+{
+  "message": "Create a survey to test user satisfaction with our mobile app",
+  "session_id": "optional-existing-session-uuid",
+  "project_id": "optional-project-uuid", 
+  "message_type": "conversation" | "template" | "analysis" | "advice"
+}
+```
+
+### HTTP Request Details:
+- **Method**: POST
+- **Endpoint**: `/functions/v1/chatbot`
+- **Headers**: 
+  - `Authorization: Bearer {JWT_TOKEN}`
+  - `Content-Type: application/json`
+  - `apikey: {SUPABASE_ANON_KEY}`
+
+## 2. CHATBOT PROCESSING (Internal Logic)
+========================================
+
+### A. Session Management
+- If `session_id` provided → verify ownership and use existing
+- If no `session_id` → create new session with auto-generated title
+- Link to `project_id` if provided for context
+
+### B. Message Storage
+- Save user message to `chat_messages` table
+- Include message type and any metadata
+
+### C. Context Building
+- Retrieve last 8 messages from session for context
+- Build conversation history for Claude API
+- Include project context if available
+
+### D. System Prompt Generation
+```
+Base prompt: Expert research consultant for concept testing...
++ Project context (if available):
+  - Name: {project.name}
+  - Description: {project.description}
+  - Target Audience: {project.target_audience}
+  - Research Goals: {project.research_goals}
+```
+
+
+### What we send to Claude:
+```json
+{
+  "model": "claude-3-5-sonnet-20241022",
+  "max_tokens": 4000,
+  "system": "{generated_system_prompt}",
+  "messages": [
+    {"role": "user", "content": "Previous message 1"},
+    {"role": "assistant", "content": "Previous response 1"},
+    {"role": "user", "content": "Current user message"}
+  ]
+}
+```
+
+### What we expect back from Claude:
+```
+Text response that may contain JSON survey templates like:
+
+"Here's a survey template for testing mobile app satisfaction:
+
+{
+  "title": "Mobile App User Satisfaction Survey",
+  "description": "Help us improve your app experience",
+  "questions": [
+    {
+      "id": "q1",
+      "type": "rating_scale",
+      "question": "How satisfied are you with the app's overall performance?",
+      "scale": {
+        "min": 1,
+        "max": 5,
+        "labels": {"1": "Very Dissatisfied", "5": "Very Satisfied"}
+      }
+    },
+    {
+      "id": "q2", 
+      "type": "multiple_choice",
+      "question": "Which feature do you use most often?",
+      "options": ["Dashboard", "Settings", "Reports", "Profile"]
+    }
+  ],
+  "metadata": {
+    "estimated_time": "3 minutes",
+    "target_responses": 100
+  }
+}
+
+This template focuses on key satisfaction metrics..."
+```
+
+
+### Our Enhanced Detection Logic:
+1. **Initial Check**: Look for `"questions"` AND `"title"` in response
+2. **JSON Extraction**: Use brace-counting algorithm to find complete JSON objects
+3. **Validation**: Ensure extracted JSON has:
+   - `title` (string)
+   - `questions` (array with length > 0)
+   - Each question has `question` and `type` properties
+4. **Template Validation**: Verify it's a valid survey template structure
+
+### Expected Extracted JSON:
+```json
+{
+  "title": "Mobile App User Satisfaction Survey",
+  "description": "Help us improve your app experience", 
+  "questions": [
+    {
+      "id": "q1",
+      "type": "rating_scale",
+      "question": "How satisfied are you with the app's overall performance?",
+      "scale": {
+        "min": 1,
+        "max": 5,
+        "labels": {"1": "Very Dissatisfied", "5": "Very Satisfied"}
+      }
+    },
+    {
+      "id": "q2",
+      "type": "multiple_choice", 
+      "question": "Which feature do you use most often?",
+      "options": ["Dashboard", "Settings", "Reports", "Profile"]
+    }
+  ],
+  "metadata": {
+    "estimated_time": "3 minutes",
+    "target_responses": 100
+  }
+}
+```
+## 4. ARTIFACT DETECTION & EXTRACTION
+
+### Our Enhanced Detection Logic:
+1. **Initial Check**: Look for `"questions"` AND `"title"` in response
+2. **JSON Extraction**: Use brace-counting algorithm to find complete JSON objects
+3. **Validation**: Ensure extracted JSON has:
+   - `artifact_id` (string - either existing ID or "new")
+   - `title` (string)
+   - `questions` (array with length > 0)
+   - Each question has `question` and `type` properties
+4. **Template Validation**: Verify it's a valid survey template structure
+
+### Expected Extracted JSON (Enhanced with Artifact ID):
+```json
+{
+  "artifact_id": "new",
+  "title": "Mobile App User Satisfaction Survey",
+  "description": "Help us improve your app experience", 
+  "questions": [
+    {
+      "id": "q1",
+      "type": "rating_scale",
+      "question": "How satisfied are you with the app's overall performance?",
+      "scale": {
+        "min": 1,
+        "max": 5,
+        "labels": {"1": "Very Dissatisfied", "5": "Very Satisfied"}
+      }
+    },
+    {
+      "id": "q2",
+      "type": "multiple_choice", 
+      "question": "Which feature do you use most often?",
+      "options": ["Dashboard", "Settings", "Reports", "Profile"]
+    }
+  ],
+  "metadata": {
+    "estimated_time": "3 minutes",
+    "target_responses": 100
+  }
+}
+```
+
+### Our Enhanced Detection Logic:
+1. **Initial Check**: Look for `"questions"` AND `"title"` in response
+2. **JSON Extraction**: Use brace-counting algorithm to find complete JSON objects
+3. **Validation**: Ensure extracted JSON has:
+   - `title` (string)
+   - `questions` (array with length > 0)
+   - Each question has `question` and `type` properties
+4. **Template Validation**: Verify it's a valid survey template structure
+
+### Expected Extracted JSON:
+```json
+{
+  "title": "Mobile App User Satisfaction Survey",
+  "description": "Help us improve your app experience", 
+  "questions": [
+    {
+      "id": "q1",
+      "type": "rating_scale",
+      "question": "How satisfied are you with the app's overall performance?",
+      "scale": {
+        "min": 1,
+        "max": 5,
+        "labels": {"1": "Very Dissatisfied", "5": "Very Satisfied"}
+      }
+    },
+    {
+      "id": "q2",
+      "type": "multiple_choice", 
+      "question": "Which feature do you use most often?",
+      "options": ["Dashboard", "Settings", "Reports", "Profile"]
+    }
+  ],
+  "metadata": {
+    "estimated_time": "3 minutes",
+    "target_responses": 100
+  }
+}
+```
+## 3. CLAUDE API INTERACTION (ENHANCED WITH ARTIFACT CONTEXT)
+
+### Enhanced System Prompt Generation:
+- **Base Prompt**: Expert research consultant for concept testing
+- **Existing Artifacts Context**: List of current session artifacts with IDs
+- **Project Context**: If available, include project details
+- **Artifact Instructions**: Clear guidance on when to use existing IDs vs "new"
+
+### Enhanced System Prompt Example:
+```
+You are an expert research consultant specializing in concept testing...
+
+When generating survey templates, use this JSON structure and ALWAYS include an artifact_id:
+{
+  "artifact_id": "existing-artifact-id" | "new",
+  "title": "Survey Title",
+  "description": "Survey description",
+  "questions": [...],
+  "metadata": {...}
+}
+
+IMPORTANT: When creating JSON templates:
+- If updating an existing artifact, use its artifact_id from the list below
+- If creating something completely new, use artifact_id: "new"
+- Always include the artifact_id field in your JSON response
+
+Existing artifacts in this conversation:
+- artifact_id: abc-123-def, title: "Mobile App Satisfaction Survey", version: 2
+- artifact_id: xyz-456-ghi, title: "User Onboarding Feedback", version: 1
+
+No existing artifacts in this conversation yet.
+```
+
+### What we send to Claude:
+```json
+{
+  "model": "claude-3-5-sonnet-20241022",
+  "max_tokens": 4000,
+  "system": "{enhanced_system_prompt_with_artifacts}",
+  "messages": [
+    {"role": "user", "content": "Previous message 1"},
+    {"role": "assistant", "content": "Previous response 1"},
+    {"role": "user", "content": "Current user message"}
+  ]
+}
+```
+
+### What we expect back from Claude (Enhanced):
+```
+Text response that may contain JSON survey templates with artifact IDs:
+
+"I'll update your existing mobile app survey with better questions:
+
+{
+  "artifact_id": "abc-123-def",
+  "title": "Mobile App User Satisfaction Survey (Updated)",
+  "description": "Help us improve your app experience with enhanced questions",
+  "questions": [
+    {
+      "id": "q1",
+      "type": "rating_scale",
+      "question": "How satisfied are you with the app's overall performance?",
+      "scale": {
+        "min": 1,
+        "max": 5,
+        "labels": {"1": "Very Dissatisfied", "5": "Very Satisfied"}
+      }
+    },
+    {
+      "id": "q2", 
+      "type": "multiple_choice",
+      "question": "Which feature do you use most often?",
+      "options": ["Dashboard", "Settings", "Reports", "Profile", "Analytics"]
+    },
+    {
+      "id": "q3",
+      "type": "text",
+      "question": "What specific improvements would you like to see?"
+    }
+  ],
+  "metadata": {
+    "estimated_time": "4 minutes",
+    "target_responses": 150
+  }
+}
+
+This updated version includes an additional open-ended question..."
+```
+
+## 4. ARTIFACT DETECTION & EXTRACTION (ENHANCED)
+
+### Our Enhanced Detection Logic:
+1. **Initial Check**: Look for `"questions"` AND `"title"` in response
+2. **JSON Extraction**: Use brace-counting algorithm to find complete JSON objects
+3. **Enhanced Validation**: Ensure extracted JSON has:
+   - `artifact_id` (string - either existing UUID or "new")
+   - `title` (string)
+   - `questions` (array with length > 0)
+   - Each question has `question` and `type` properties
+4. **Template Validation**: Verify it's a valid survey template structure
+
+### Expected Extracted JSON (Enhanced with Artifact ID):
+```json
+{
+  "artifact_id": "abc-123-def",
+  "title": "Mobile App User Satisfaction Survey (Updated)",
+  "description": "Help us improve your app experience with enhanced questions", 
+  "questions": [
+    {
+      "id": "q1",
+      "type": "rating_scale",
+      "question": "How satisfied are you with the app's overall performance?",
+      "scale": {
+        "min": 1,
+        "max": 5,
+        "labels": {"1": "Very Dissatisfied", "5": "Very Satisfied"}
+      }
+    },
+    {
+      "id": "q2",
+      "type": "multiple_choice", 
+      "question": "Which feature do you use most often?",
+      "options": ["Dashboard", "Settings", "Reports", "Profile", "Analytics"]
+    },
+    {
+      "id": "q3",
+      "type": "text",
+      "question": "What specific improvements would you like to see?"
+    }
+  ],
+  "metadata": {
+    "estimated_time": "4 minutes",
+    "target_responses": 150
+  }
+}
+```
+===========================
+
+### What we send to Claude:
+```json
+{
+  "model": "claude-3-5-sonnet-20241022",
+  "max_tokens": 4000,
+  "system": "{generated_system_prompt}",
+  "messages": [
+    {"role": "user", "content": "Previous message 1"},
+    {"role": "assistant", "content": "Previous response 1"},
+    {"role": "user", "content": "Current user message"}
+  ]
+}
+```
+
+### What we expect back from Claude:
+```
+Text response that may contain JSON survey templates like:
+
+"Here's a survey template for testing mobile app satisfaction:
+
+{
+  "title": "Mobile App User Satisfaction Survey",
+  "description": "Help us improve your app experience",
+  "questions": [
+    {
+      "id": "q1",
+      "type": "rating_scale",
+      "question": "How satisfied are you with the app's overall performance?",
+      "scale": {
+        "min": 1,
+        "max": 5,
+        "labels": {"1": "Very Dissatisfied", "5": "Very Satisfied"}
+      }
+    },
+    {
+      "id": "q2", 
+      "type": "multiple_choice",
+      "question": "Which feature do you use most often?",
+      "options": ["Dashboard", "Settings", "Reports", "Profile"]
+    }
+  ],
+  "metadata": {
+    "estimated_time": "3 minutes",
+    "target_responses": 100
+  }
+}
+
+This template focuses on key satisfaction metrics..."
+```
+
+
+### Our Enhanced Detection Logic:
+1. **Initial Check**: Look for `"questions"` AND `"title"` in response
+2. **JSON Extraction**: Use brace-counting algorithm to find complete JSON objects
+3. **Validation**: Ensure extracted JSON has:
+   - `title` (string)
+   - `questions` (array with length > 0)
+   - Each question has `question` and `type` properties
+4. **Template Validation**: Verify it's a valid survey template structure
+
+### Expected Extracted JSON:
+```json
+{
+  "title": "Mobile App User Satisfaction Survey",
+  "description": "Help us improve your app experience", 
+  "questions": [
+    {
+      "id": "q1",
+      "type": "rating_scale",
+      "question": "How satisfied are you with the app's overall performance?",
+      "scale": {
+        "min": 1,
+        "max": 5,
+        "labels": {"1": "Very Dissatisfied", "5": "Very Satisfied"}
+      }
+    },
+    {
+      "id": "q2",
+      "type": "multiple_choice", 
+      "question": "Which feature do you use most often?",
+      "options": ["Dashboard", "Settings", "Reports", "Profile"]
+    }
+  ],
+  "metadata": {
+    "estimated_time": "3 minutes",
+    "target_responses": 100
+  }
+}
+```
+## 4. ARTIFACT DETECTION & EXTRACTION
+
+### Our Enhanced Detection Logic:
+1. **Initial Check**: Look for `"questions"` AND `"title"` in response
+2. **JSON Extraction**: Use brace-counting algorithm to find complete JSON objects
+3. **Validation**: Ensure extracted JSON has:
+   - `artifact_id` (string - either existing ID or "new")
+   - `title` (string)
+   - `questions` (array with length > 0)
+   - Each question has `question` and `type` properties
+4. **Template Validation**: Verify it's a valid survey template structure
+
+### Expected Extracted JSON (Enhanced with Artifact ID):
+```json
+{
+  "artifact_id": "new",
+  "title": "Mobile App User Satisfaction Survey",
+  "description": "Help us improve your app experience", 
+  "questions": [
+    {
+      "id": "q1",
+      "type": "rating_scale",
+      "question": "How satisfied are you with the app's overall performance?",
+      "scale": {
+        "min": 1,
+        "max": 5,
+        "labels": {"1": "Very Dissatisfied", "5": "Very Satisfied"}
+      }
+    },
+    {
+      "id": "q2",
+      "type": "multiple_choice", 
+      "question": "Which feature do you use most often?",
+      "options": ["Dashboard", "Settings", "Reports", "Profile"]
+    }
+  ],
+  "metadata": {
+    "estimated_time": "3 minutes",
+    "target_responses": 100
+  }
+}
+```
+====================================
+
+### Our Enhanced Detection Logic:
+1. **Initial Check**: Look for `"questions"` AND `"title"` in response
+2. **JSON Extraction**: Use brace-counting algorithm to find complete JSON objects
+3. **Validation**: Ensure extracted JSON has:
+   - `title` (string)
+   - `questions` (array with length > 0)
+   - Each question has `question` and `type` properties
+4. **Template Validation**: Verify it's a valid survey template structure
+
+### Expected Extracted JSON:
+```json
+{
+  "title": "Mobile App User Satisfaction Survey",
+  "description": "Help us improve your app experience", 
+  "questions": [
+    {
+      "id": "q1",
+      "type": "rating_scale",
+      "question": "How satisfied are you with the app's overall performance?",
+      "scale": {
+        "min": 1,
+        "max": 5,
+        "labels": {"1": "Very Dissatisfied", "5": "Very Satisfied"}
+      }
+    },
+    {
+      "id": "q2",
+      "type": "multiple_choice", 
+      "question": "Which feature do you use most often?",
+      "options": ["Dashboard", "Settings", "Reports", "Profile"]
+    }
+  ],
+  "metadata": {
+    "estimated_time": "3 minutes",
+    "target_responses": 100
+  }
+}
+```
+
+## 5. DATABASE STORAGE
+=====================
+
+### A. Message Storage (chat_messages table):
+```json
+{
+  "id": "generated-uuid",
+  "session_id": "session-uuid",
+  "role": "assistant",
+  "content": "Full Claude response text...",
+  "structured_output": {extracted_json_or_null},
+  "message_type": "conversation",
+  "metadata": {},
+  "created_at": "2024-01-15T10:30:00Z"
+}
+```
+
+### B. Artifact Storage (artifacts table):
+```json
+{
+  "id": "generated-uuid",
+  "session_id": "session-uuid", 
+  "message_id": "message-uuid",
+  "template_data": {
+    "title": "Mobile App User Satisfaction Survey",
+    "description": "Help us improve your app experience",
+    "questions": [...],
+    "metadata": {...}
+  },
+  "template_name": "Mobile App User Satisfaction Survey",
+  "version": 1,
+  "is_active": true,
+  "created_at": "2024-01-15T10:30:00Z",
+  "updated_at": "2024-01-15T10:30:00Z"
+}
+```
+
+
+### What we send back to the user:
+```json
+{
+  "response": "Here's a survey template for testing mobile app satisfaction:\n\n{...json...}\n\nThis template focuses on key satisfaction metrics...",
+  "session_id": "session-uuid",
+  "message_id": "message-uuid", 
+  "structured_output": {
+    "title": "Mobile App User Satisfaction Survey",
+    "description": "Help us improve your app experience",
+    "questions": [
+      {
+        "id": "q1",
+        "type": "rating_scale",
+        "question": "How satisfied are you with the app's overall performance?",
+        "scale": {
+          "min": 1,
+          "max": 5,
+          "labels": {"1": "Very Dissatisfied", "5": "Very Satisfied"}
+        }
+      },
+      {
+        "id": "q2",
+        "type": "multiple_choice",
+        "question": "Which feature do you use most often?", 
+        "options": ["Dashboard", "Settings", "Reports", "Profile"]
+      }
+    ],
+    "metadata": {
+      "estimated_time": "3 minutes",
+      "target_responses": 100
+    }
+  }
+}
+```
+## 5. ENHANCED DATABASE STORAGE WITH VERSIONING
+
+### A. Message Storage (chat_messages table):
+```json
+{
+  "id": "generated-uuid",
+  "session_id": "session-uuid",
+  "role": "assistant",
+  "content": "Full Claude response text...",
+  "structured_output": {extracted_json_or_null},
+  "message_type": "conversation",
+  "metadata": {},
+  "created_at": "2024-01-15T10:30:00Z"
+}
+```
+
+### B. Enhanced Artifact Storage with Versioning (artifacts table):
+```json
+{
+  "id": "artifact-uuid-stays-same-across-versions",
+  "session_id": "session-uuid", 
+  "message_id": "message-uuid",
+  "template_data": {
+    "artifact_id": "artifact-uuid",
+    "title": "Mobile App User Satisfaction Survey (Updated)",
+    "description": "Help us improve your app experience",
+    "questions": [...],
+    "metadata": {...}
+  },
+  "template_name": "Mobile App User Satisfaction Survey (Updated)",
+  "version": 3,
+  "is_active": true,
+  "created_at": "2024-01-15T10:30:00Z",
+  "updated_at": "2024-01-15T11:45:00Z"
+}
+```
+
+### C. Versioning Logic:
+- **New Artifact**: `artifact_id: "new"` → Generate new UUID, version = 1
+- **Update Artifact**: `artifact_id: "existing-uuid"` → Keep same UUID, increment version
+- **Active Status**: Only latest version has `is_active: true`
+- **History Preservation**: All previous versions remain in database for audit trail
+
+
+### Enhanced Response Structure:
+```json
+{
+  "response": "I've updated your mobile app survey with better questions:\n\n{...json...}\n\nThis updated version includes an additional open-ended question...",
+  "session_id": "session-uuid",
+  "message_id": "message-uuid", 
+  "structured_output": {
+    "artifact_id": "abc-123-def",
+    "title": "Mobile App User Satisfaction Survey (Updated)",
+    "description": "Help us improve your app experience with enhanced questions",
+    "questions": [
+      {
+        "id": "q1",
+        "type": "rating_scale",
+        "question": "How satisfied are you with the app's overall performance?",
+        "scale": {
+          "min": 1,
+          "max": 5,
+          "labels": {"1": "Very Dissatisfied", "5": "Very Satisfied"}
+        }
+      },
+      {
+        "id": "q2",
+        "type": "multiple_choice",
+        "question": "Which feature do you use most often?", 
+        "options": ["Dashboard", "Settings", "Reports", "Profile", "Analytics"]
+      },
+      {
+        "id": "q3",
+        "type": "text",
+        "question": "What specific improvements would you like to see?"
+      }
+    ],
+    "metadata": {
+      "estimated_time": "4 minutes",
+      "target_responses": 150
+    }
+  },
+  "artifacts": [
+    {
+      "id": "abc-123-def",
+      "action": "updated",
+      "version": 3,
+      "data": {
+        "artifact_id": "abc-123-def",
+        "title": "Mobile App User Satisfaction Survey (Updated)",
+        "description": "Help us improve your app experience with enhanced questions",
+        "questions": [...],
+        "metadata": {...}
+      }
+    }
+  ]
+}
+```
+
+### Response Variations:
+
+#### New Artifact Created:
+```json
+{
+  "artifacts": [
+    {
+      "id": "new-generated-uuid",
+      "action": "created",
+      "version": 1,
+      "data": {...}
+    }
+  ]
+}
+```
+
+#### No Artifact Generated:
+```json
+{
+  "response": "Here are some best practices for survey design...",
+  "session_id": "session-uuid",
+  "message_id": "message-uuid"
+  // No structured_output or artifacts fields
+}
+```
+## 6. ENHANCED RESPONSE TO USER (Chatbot → Frontend)
+
+### Enhanced Response Structure with artifact_json:
+```json
+{
+  "response": "I've updated your mobile app survey with better questions:\n\n{...json...}\n\nThis updated version includes an additional open-ended question...",
+  "session_id": "session-uuid",
+  "message_id": "message-uuid", 
+  "artifact_json": {
+    "artifact_id": "abc-123-def",
+    "title": "Mobile App User Satisfaction Survey (Updated)",
+    "description": "Help us improve your app experience with enhanced questions",
+    "questions": [
+      {
+        "id": "q1",
+        "type": "rating_scale",
+        "question": "How satisfied are you with the app's overall performance?",
+        "scale": {
+          "min": 1,
+          "max": 5,
+          "labels": {"1": "Very Dissatisfied", "5": "Very Satisfied"}
+        }
+      },
+      {
+        "id": "q2",
+        "type": "multiple_choice",
+        "question": "Which feature do you use most often?", 
+        "options": ["Dashboard", "Settings", "Reports", "Profile", "Analytics"]
+      },
+      {
+        "id": "q3",
+        "type": "text",
+        "question": "What specific improvements would you like to see?"
+      }
+    ],
+    "metadata": {
+      "estimated_time": "4 minutes",
+      "target_responses": 150
+    }
+  },
+  "artifacts": [
+    {
+      "id": "abc-123-def",
+      "action": "updated",
+      "version": 3,
+      "template_name": "Mobile App User Satisfaction Survey (Updated)",
+      "data": {
+        "artifact_id": "abc-123-def",
+        "title": "Mobile App User Satisfaction Survey (Updated)",
+        "description": "Help us improve your app experience with enhanced questions",
+        "questions": [...],
+        "metadata": {...}
+      }
+    }
+  ]
+}
+```
+
+### Response Variations:
+
+#### New Artifact Created:
+```json
+{
+  "response": "Here's a new survey template for pizza preferences...",
+  "session_id": "session-uuid",
+  "message_id": "message-uuid",
+  "artifact_json": {
+    "artifact_id": "new",
+    "title": "Pizza Preference Survey",
+    "questions": [...]
+  },
+  "artifacts": [
+    {
+      "id": "new-generated-uuid",
+      "action": "created",
+      "version": 1,
+      "template_name": "Pizza Preference Survey",
+      "data": {
+        "artifact_id": "new",
+        "title": "Pizza Preference Survey",
+        "questions": [...]
+      }
+    }
+  ]
+}
+```
+
+#### No Artifact Generated:
+```json
+{
+  "response": "Here are some best practices for survey design...",
+  "session_id": "session-uuid",
+  "message_id": "message-uuid",
+  "artifact_json": null
+  // No artifacts field when no artifact is generated
+}
+```
+
+### Key Frontend Benefits:
+- **artifact_json**: Contains the raw JSON template for immediate use
+- **artifacts**: Contains metadata about what happened (created/updated, version, etc.)
+- **template_name**: Human-readable name for UI display
+- **version**: Version number for tracking iterations
+- **action**: Clear indication of whether this was a new creation or update
+
+### Enhanced Response Structure:
+```json
+{
+  "response": "I've updated your mobile app survey with better questions:\n\n{...json...}\n\nThis updated version includes an additional open-ended question...",
+  "session_id": "session-uuid",
+  "message_id": "message-uuid", 
+  "structured_output": {
+    "artifact_id": "abc-123-def",
+    "title": "Mobile App User Satisfaction Survey (Updated)",
+    "description": "Help us improve your app experience with enhanced questions",
+    "questions": [
+      {
+        "id": "q1",
+        "type": "rating_scale",
+        "question": "How satisfied are you with the app's overall performance?",
+        "scale": {
+          "min": 1,
+          "max": 5,
+          "labels": {"1": "Very Dissatisfied", "5": "Very Satisfied"}
+        }
+      },
+      {
+        "id": "q2",
+        "type": "multiple_choice",
+        "question": "Which feature do you use most often?", 
+        "options": ["Dashboard", "Settings", "Reports", "Profile", "Analytics"]
+      },
+      {
+        "id": "q3",
+        "type": "text",
+        "question": "What specific improvements would you like to see?"
+      }
+    ],
+    "metadata": {
+      "estimated_time": "4 minutes",
+      "target_responses": 150
+    }
+  },
+  "artifacts": [
+    {
+      "id": "abc-123-def",
+      "action": "updated",
+      "version": 3,
+      "data": {
+        "artifact_id": "abc-123-def",
+        "title": "Mobile App User Satisfaction Survey (Updated)",
+        "description": "Help us improve your app experience with enhanced questions",
+        "questions": [...],
+        "metadata": {...}
+      }
+    }
+  ]
+}
+```
+
+### Response Variations:
+
+#### New Artifact Created:
+```json
+{
+  "artifacts": [
+    {
+      "id": "new-generated-uuid",
+      "action": "created",
+      "version": 1,
+      "data": {...}
+    }
+  ]
+}
+```
+
+#### No Artifact Generated:
+```json
+{
+  "response": "Here are some best practices for survey design...",
+  "session_id": "session-uuid",
+  "message_id": "message-uuid"
+  // No structured_output or artifacts fields
+}
+```
+==========================================
+
+### What we send back to the user:
+```json
+{
+  "response": "Here's a survey template for testing mobile app satisfaction:\n\n{...json...}\n\nThis template focuses on key satisfaction metrics...",
+  "session_id": "session-uuid",
+  "message_id": "message-uuid", 
+  "structured_output": {
+    "title": "Mobile App User Satisfaction Survey",
+    "description": "Help us improve your app experience",
+    "questions": [
+      {
+        "id": "q1",
+        "type": "rating_scale",
+        "question": "How satisfied are you with the app's overall performance?",
+        "scale": {
+          "min": 1,
+          "max": 5,
+          "labels": {"1": "Very Dissatisfied", "5": "Very Satisfied"}
+        }
+      },
+      {
+        "id": "q2",
+        "type": "multiple_choice",
+        "question": "Which feature do you use most often?", 
+        "options": ["Dashboard", "Settings", "Reports", "Profile"]
+      }
+    ],
+    "metadata": {
+      "estimated_time": "3 minutes",
+      "target_responses": 100
+    }
+  }
+}
+```
+
+
+### Scenario A: Chat Interface
+- Display `response` as chat message
+- If `structured_output` exists, show special "Survey Template Generated" UI
+- Allow user to preview/edit the template
+- Provide "Use This Template" button
+
+### Scenario B: Template Library
+- Save `structured_output` to local state/storage
+- Add to user's template collection
+- Allow export/import functionality
+
+### Scenario C: Direct Survey Creation
+- Parse `structured_output.questions` 
+- Convert to survey builder format
+- Pre-populate survey creation form
+## 7. ENHANCED FRONTEND USAGE SCENARIOS
+
+### Scenario A: Enhanced Chat Interface
+- Display `response` as chat message
+- If `artifact_json` exists, show special "Survey Template Generated" UI
+- Use `artifacts` array to display version info and action taken
+- Show template name from `artifacts[0].template_name`
+- Display version badge: "v3 (Updated)" or "v1 (New)"
+- Allow user to preview/edit the template using `artifact_json`
+- Provide "Use This Template" button
+
+### Scenario B: Smart Template Library
+- Save `artifact_json` to local state/storage with metadata from `artifacts`
+- Track template versions and show update history
+- Display human-readable names using `template_name`
+- Allow users to see which templates were created vs updated
+- Enable rollback to previous versions using artifact IDs
+
+### Scenario C: Intelligent Survey Creation
+- Parse `artifact_json.questions` to pre-populate survey builder
+- Use `artifacts` metadata to show template provenance
+- Handle artifact updates by offering to replace existing surveys
+- Convert question types automatically based on validated structure
+
+### Scenario D: Version Management UI
+- Show artifact timeline using version numbers
+- Display "Created" vs "Updated" badges based on `action` field
+- Allow users to compare versions of the same artifact
+- Provide rollback functionality using artifact IDs
+=============================
+
+### Scenario A: Chat Interface
+- Display `response` as chat message
+- If `structured_output` exists, show special "Survey Template Generated" UI
+- Allow user to preview/edit the template
+- Provide "Use This Template" button
+
+### Scenario B: Template Library
+- Save `structured_output` to local state/storage
+- Add to user's template collection
+- Allow export/import functionality
+
+### Scenario C: Direct Survey Creation
+- Parse `structured_output.questions` 
+- Convert to survey builder format
+- Pre-populate survey creation form
+
+## 8. ERROR HANDLING
+===================
+
+### Potential Issues & Responses:
+1. **No JSON detected**: Return normal chat response without structured_output
+2. **Invalid JSON**: Log error, continue with text-only response
+3. **Artifact save failure**: Log error, but still return successful chat response
+4. **Claude API error**: Return error response with details
+
+### Error Response Format:
+```json
+{
+  "error": "Internal server error",
+  "details": "Claude API error: 429 - Rate limit exceeded"
+}
+```
+
+## 9. FUTURE ENHANCEMENTS
+========================
+
+### Artifact Versioning:
+- Track when users iterate on the same concept
+- Save multiple versions with incremented version numbers
+- Mark latest as active, keep history
+
+### Additional Artifact Types:
+- Analysis reports (structured insights)
+- Recommendation lists (actionable advice)
+- Research methodologies (step-by-step guides)
+
+### Enhanced Detection:
+- Support for multiple JSON objects in one response
+- Detection of other structured formats (YAML, CSV data, etc.)
+- Confidence scoring for artifact quality
+
+## 10. TESTING SCENARIOS
+=======================
+
+### Test Case 1: Simple Survey Generation
+**Input**: "Create a 3-question survey about pizza preferences"
+**Expected**: Valid JSON with 3 questions, saved to artifacts
+**Verify**: Check artifacts table for new entry
+
+### Test Case 2: Complex Survey with Multiple Question Types
+**Input**: "Create a comprehensive user onboarding survey with rating scales, multiple choice, and open text"
+**Expected**: JSON with mixed question types, proper validation
+**Verify**: All question types properly structured
+
+### Test Case 3: No Template Generation
+**Input**: "What are best practices for survey design?"
+**Expected**: Text response only, no structured_output
+**Verify**: No artifact created, normal chat flow
+
+### Test Case 4: Invalid JSON in Response
+**Input**: Force Claude to generate malformed JSON
+**Expected**: Graceful handling, text-only response
+**Verify**: Error logged but user gets response
+
+## 11. MONITORING & ANALYTICS
+============================
+
+### Key Metrics to Track:
+- Artifact generation rate (% of messages that create artifacts)
+- Artifact quality (validation success rate)
+- User engagement with generated templates
+- Most common template types/patterns
+
+### Logging Strategy:
+- Log all artifact saves with metadata
+- Track extraction failures for improvement
+- Monitor Claude API usage and costs
+- User feedback on generated templates
+
+---
+
+This document serves as our reference for the complete chatbot artifact saving system. 
+Update as we implement new features or discover edge cases.

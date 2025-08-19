@@ -14,7 +14,14 @@ interface ChatResponse {
   response: string
   session_id: string
   message_id: string
-  structured_output?: any
+  artifact_json?: any
+  artifacts?: Array<{
+    id: string
+    action: 'created' | 'updated'
+    version: number
+    template_name: string
+    data: any
+  }>
 }
 
 interface DatabaseMessage {
@@ -190,33 +197,103 @@ function extractSurveyTemplate(text: string): any | null {
   return null
 }
 
-// Save artifact to database
+// Get existing artifacts for session context
+async function getSessionArtifacts(sessionId: string): Promise<any[]> {
+  try {
+    const { data: artifacts, error } = await supabase
+      .from('artifacts')
+      .select('id, template_name, version, template_data')
+      .eq('session_id', sessionId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Failed to get session artifacts:', error)
+      return []
+    }
+
+    return artifacts || []
+  } catch (e) {
+    console.error('Error in getSessionArtifacts:', e)
+    return []
+  }
+}
+
+// Enhanced artifact saving with versioning
 async function saveArtifact(
   sessionId: string,
   messageId: string,
   templateData: any,
   artifactType: string = 'survey_template'
-): Promise<void> {
+): Promise<{ id: string, action: string, version: number }> {
   try {
     const templateName = templateData.title || `${artifactType}_${Date.now()}`
-    
-    const { error } = await supabase
-      .from('artifacts')
-      .insert({
-        session_id: sessionId,
-        message_id: messageId,
-        template_data: templateData,
-        template_name: templateName,
-        version: 1,
-        is_active: true
-      })
+    const artifactId = templateData.artifact_id
 
-    if (error) {
-      console.error('Failed to save artifact:', error)
-      throw new Error(`Failed to save artifact: ${error.message}`)
+    // Check if this is an update to existing artifact
+    if (artifactId && artifactId !== 'new') {
+      // Mark existing artifact as inactive
+      await supabase
+        .from('artifacts')
+        .update({ is_active: false })
+        .eq('id', artifactId)
+        .eq('session_id', sessionId)
+
+      // Get the current version
+      const { data: existingArtifact } = await supabase
+        .from('artifacts')
+        .select('version')
+        .eq('id', artifactId)
+        .eq('session_id', sessionId)
+        .order('version', { ascending: false })
+        .limit(1)
+        .single()
+
+      const newVersion = (existingArtifact?.version || 0) + 1
+
+      // Create new version with same ID
+      const { error } = await supabase
+        .from('artifacts')
+        .insert({
+          id: artifactId, // Keep same ID for versioning
+          session_id: sessionId,
+          message_id: messageId,
+          template_data: templateData,
+          template_name: templateName,
+          version: newVersion,
+          is_active: true
+        })
+
+      if (error) {
+        console.error('Failed to update artifact:', error)
+        throw new Error(`Failed to update artifact: ${error.message}`)
+      }
+
+      console.log(`Successfully updated artifact: ${templateName} (v${newVersion})`)
+      return { id: artifactId, action: 'updated', version: newVersion }
+    } else {
+      // Create new artifact
+      const { data: newArtifact, error } = await supabase
+        .from('artifacts')
+        .insert({
+          session_id: sessionId,
+          message_id: messageId,
+          template_data: templateData,
+          template_name: templateName,
+          version: 1,
+          is_active: true
+        })
+        .select('id')
+        .single()
+
+      if (error) {
+        console.error('Failed to create artifact:', error)
+        throw new Error(`Failed to create artifact: ${error.message}`)
+      }
+
+      console.log(`Successfully created artifact: ${templateName} (v1)`)
+      return { id: newArtifact.id, action: 'created', version: 1 }
     }
-    
-    console.log(`Successfully saved ${artifactType} artifact: ${templateName}`)
   } catch (e) {
     console.error('Error in saveArtifact:', e)
     throw e
@@ -224,8 +301,8 @@ async function saveArtifact(
 }
 
 // Generate system prompt for concept testing
-function generateSystemPrompt(projectContext?: any): string {
-  const basePrompt = `You are an expert research consultant specializing in concept testing, survey design, and market research methodology. Your role is to help users create effective surveys, analyze results, and improve their research approach.
+function generateSystemPrompt(projectContext?: any, existingArtifacts?: any[]): string {
+  let prompt = `You are an expert research consultant specializing in concept testing, survey design, and market research methodology. Your role is to help users create effective surveys, analyze results, and improve their research approach.
 
 Key capabilities:
 1. Survey Design: Help craft clear, unbiased questions and optimal survey structure
@@ -233,8 +310,9 @@ Key capabilities:
 3. Results Analysis: Interpret survey data and provide actionable insights
 4. Methodology Advice: Guide users on research best practices and statistical validity
 
-When generating survey templates, use this JSON structure:
+When generating survey templates, use this JSON structure and ALWAYS include an artifact_id:
 {
+  "artifact_id": "existing-artifact-id" | "new",
   "title": "Survey Title",
   "description": "Survey description",
   "questions": [
@@ -252,16 +330,31 @@ When generating survey templates, use this JSON structure:
   }
 }
 
-Always provide practical, actionable advice based on research best practices.
+IMPORTANT: When creating JSON templates:
+- If updating an existing artifact, use its artifact_id from the list below
+- If creating something completely new, use artifact_id: "new"
+- Always include the artifact_id field in your JSON response`
 
-You are currently operating in standalone mode without specific project context. Provide general guidance that can be applied to various concept testing scenarios.`
-
-  if (projectContext) {
-    return basePrompt.replace('You are currently operating in standalone mode without specific project context. Provide general guidance that can be applied to various concept testing scenarios.', 
-      `Project Context:\n- Name: ${projectContext.name}\n- Description: ${projectContext.description}\n- Target Audience: ${projectContext.target_audience}\n- Research Goals: ${projectContext.research_goals?.join(', ')}`)
+  // Add existing artifacts context
+  if (existingArtifacts && existingArtifacts.length > 0) {
+    const artifactsList = existingArtifacts.map(artifact => 
+      `- artifact_id: ${artifact.id}, title: "${artifact.template_name}", version: ${artifact.version}`
+    ).join('\n')
+    
+    prompt += `\n\nExisting artifacts in this conversation:\n${artifactsList}\n`
+  } else {
+    prompt += `\n\nNo existing artifacts in this conversation yet.\n`
   }
 
-  return basePrompt
+  prompt += `\nAlways provide practical, actionable advice based on research best practices.`
+
+  if (projectContext) {
+    prompt += `\n\nProject Context:\n- Name: ${projectContext.name}\n- Description: ${projectContext.description}\n- Target Audience: ${projectContext.target_audience}\n- Research Goals: ${projectContext.research_goals?.join(', ')}`
+  } else {
+    prompt += `\n\nYou are currently operating in standalone mode without specific project context. Provide general guidance that can be applied to various concept testing scenarios.`
+  }
+
+  return prompt
 }
 
 // Handle chat list functionality
@@ -456,6 +549,9 @@ Deno.serve(async (req) => {
     // Get or create session
     const sessionId = await getOrCreateSession(user.id, body.project_id, body.session_id)
 
+    // Get existing artifacts for context
+    const existingArtifacts = await getSessionArtifacts(sessionId)
+
     // Get project context if available
     let projectContext = null
     if (body.project_id) {
@@ -487,8 +583,8 @@ Deno.serve(async (req) => {
       content: body.message
     })
 
-    // Generate system prompt with project context
-    const systemPrompt = generateSystemPrompt(projectContext)
+    // Generate system prompt with project context and existing artifacts
+    const systemPrompt = generateSystemPrompt(projectContext, existingArtifacts)
 
     // Call Claude
     const claudeResponse = await callClaude(claudeMessages, systemPrompt)
@@ -513,21 +609,33 @@ Deno.serve(async (req) => {
       structuredOutput
     )
 
-    // Save as artifact if it's a valid template
+    // Save as artifact if it's a valid template and get artifact info
+    let artifactInfo: { id: string, action: string, version: number } | null = null
     if (structuredOutput && structuredOutput.questions && structuredOutput.title) {
       try {
-        await saveArtifact(sessionId, messageId, structuredOutput, 'survey_template')
+        artifactInfo = await saveArtifact(sessionId, messageId, structuredOutput, 'survey_template')
       } catch (e) {
         console.log('Failed to save artifact:', e)
       }
     }
 
-    // Return response
+    // Return enhanced response with artifact information
     const response: ChatResponse = {
       response: claudeResponse,
       session_id: sessionId,
       message_id: messageId,
-      structured_output: structuredOutput
+      artifact_json: structuredOutput || null
+    }
+
+    // Add artifact information if available
+    if (artifactInfo && structuredOutput) {
+      response.artifacts = [{
+        id: artifactInfo.id,
+        action: artifactInfo.action as 'created' | 'updated',
+        version: artifactInfo.version,
+        template_name: structuredOutput.title || 'Untitled Survey',
+        data: structuredOutput
+      }]
     }
 
     return new Response(JSON.stringify(response), {
