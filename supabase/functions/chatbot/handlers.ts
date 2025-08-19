@@ -47,7 +47,7 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
     }
 
     // Save user message
-    await saveMessage(sessionId, 'user', body.message, body.message_type || 'conversation')
+    await saveMessage(sessionId, 'user', body.message, body.type || 'conversation')
 
     // Get chat history for context
     const chatHistory = await getChatHistory(sessionId) // Uses default limit from config
@@ -100,7 +100,7 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
           sessionId, 
           'assistant', 
           beforeText, 
-          body.message_type || 'conversation'
+          body.type || 'conversation'
         )
         
         messages.push({
@@ -164,7 +164,7 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
           sessionId, 
           'assistant', 
           afterText, 
-          body.message_type || 'conversation'
+          body.type || 'conversation'
         )
         
         messages.push({
@@ -181,7 +181,7 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
         sessionId, 
         'assistant', 
         cleanedResponse, 
-        body.message_type || 'conversation'
+        body.type || 'conversation'
       )
       
       messages.push({

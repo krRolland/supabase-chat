@@ -89,7 +89,7 @@ POST /functions/v1/chatbot
   "message": "Your message to the chatbot",
   "session_id": "optional_existing_session_id",
   "project_id": "optional_project_id",
-  "message_type": "conversation" // or "template", "analysis", "advice"
+  "type": "conversation" // or "template", "analysis", "advice"
 }
 ```
 
@@ -152,7 +152,7 @@ GET /functions/v1/chatbot?action=history&session_id=SESSION_UUID
       "id": "message_uuid",
       "role": "user",
       "content": "Message content",
-      "message_type": "conversation",
+      "type": "conversation",
       "created_at": "2024-01-15T10:30:00Z"
     }
   ]

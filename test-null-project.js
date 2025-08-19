@@ -21,7 +21,7 @@ async function testNullProjectId() {
       body: JSON.stringify({
         message: "Help me create a survey for concept testing. I want to test user reactions to a new product idea.",
         project_id: null, // Explicitly null
-        message_type: "conversation"
+        type: "conversation"
       })
     });
 
@@ -62,7 +62,7 @@ async function testMissingProjectId() {
       },
       body: JSON.stringify({
         message: "Can you generate a JSON template for a user satisfaction survey?",
-        message_type: "template"
+        type: "template"
         // No project_id field at all
       })
     });

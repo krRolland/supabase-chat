@@ -75,7 +75,7 @@ export async function saveMessage(
       session_id: sessionId,
       role,
       content,
-      message_type: messageType,
+      type: messageType,
       structured_output: structuredOutput,
       is_artifact: isArtifact,
       artifact_id: artifactId
@@ -284,7 +284,7 @@ export async function getChatHistoryWithSession(userId: string, sessionId: strin
       role, 
       content, 
       structured_output, 
-      message_type, 
+      type, 
       is_artifact, 
       artifact_id, 
       created_at,
@@ -323,7 +323,7 @@ export async function getChatHistoryWithSession(userId: string, sessionId: strin
         content: msg.content,
         session_id: sessionId,
         role: msg.role,
-        message_type: msg.message_type,
+        type: msg.type,
         created_at: msg.created_at
       }
     }

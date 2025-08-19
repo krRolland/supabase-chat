@@ -20,7 +20,7 @@ async function testStartNewChat() {
       },
       body: JSON.stringify({
         message: "Hi! I need help creating a survey to test a new mobile app concept. Can you help me design some questions?",
-        message_type: "conversation"
+        type: "conversation"
       })
     });
 
@@ -64,7 +64,7 @@ async function testAddMessageToChat(sessionId) {
       body: JSON.stringify({
         message: "Can you create a JSON survey template for testing user satisfaction with the app's navigation?",
         session_id: sessionId,
-        message_type: "template"
+        type: "template"
       })
     });
 

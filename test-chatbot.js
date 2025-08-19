@@ -16,7 +16,7 @@ async function testChatbot() {
       },
       body: JSON.stringify({
         message: "Hi! I need help creating a survey to test a new mobile app concept. Can you help me design some questions?",
-        message_type: "conversation"
+        type: "conversation"
       })
     });
 
@@ -57,7 +57,7 @@ async function testTemplateGeneration() {
       },
       body: JSON.stringify({
         message: "Please create a JSON survey template for testing user satisfaction with a food delivery app. Include questions about ease of use, delivery time, and overall satisfaction.",
-        message_type: "template"
+        type: "template"
       })
     });
 

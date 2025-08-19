@@ -4,7 +4,7 @@ export interface ChatRequest {
   message: string
   session_id?: string
   project_id?: string
-  message_type?: 'conversation' | 'template' | 'analysis' | 'advice'
+  type?: 'conversation' | 'template' | 'analysis' | 'advice'
 }
 
 export interface ChatResponse {
@@ -31,7 +31,7 @@ export interface DatabaseMessage {
   role: 'user' | 'assistant'
   content: string
   structured_output?: any
-  message_type: string
+  type: string
   is_artifact: boolean
   artifact_id?: string
   created_at: string

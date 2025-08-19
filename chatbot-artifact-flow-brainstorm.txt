@@ -13,7 +13,7 @@ This document outlines the complete data flow for our concept testing chatbot, f
   "message": "Create a survey to test user satisfaction with our mobile app",
   "session_id": "optional-existing-session-uuid",
   "project_id": "optional-project-uuid", 
-  "message_type": "conversation" | "template" | "analysis" | "advice"
+  "type": "conversation" | "template" | "analysis" | "advice"
 }
 ```
 
@@ -544,7 +544,7 @@ This template focuses on key satisfaction metrics..."
   "role": "assistant",
   "content": "Full Claude response text...",
   "structured_output": {extracted_json_or_null},
-  "message_type": "conversation",
+  "type": "conversation",
   "metadata": {},
   "created_at": "2024-01-15T10:30:00Z"
 }
@@ -615,7 +615,7 @@ This template focuses on key satisfaction metrics..."
   "role": "assistant",
   "content": "Full Claude response text...",
   "structured_output": {extracted_json_or_null},
-  "message_type": "conversation",
+  "type": "conversation",
   "metadata": {},
   "created_at": "2024-01-15T10:30:00Z"
 }
