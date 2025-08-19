@@ -31,6 +31,8 @@ interface DatabaseMessage {
   content: string
   structured_output?: any
   message_type: string
+  is_artifact: boolean
+  artifact_id?: string
   created_at: string
 }
 
@@ -102,12 +104,13 @@ async function getOrCreateSession(userId: string, projectId?: string, sessionId?
   return newSession.id
 }
 
-// Get chat history for context
+// Get chat history for context (excludes artifact messages)
 async function getChatHistory(sessionId: string, limit: number = 10): Promise<DatabaseMessage[]> {
   const { data: messages, error } = await supabase
     .from('chat_messages')
     .select('*')
     .eq('session_id', sessionId)
+    .eq('is_artifact', false) // Only get text messages for context
     .order('created_at', { ascending: false })
     .limit(limit)
 
@@ -124,7 +127,9 @@ async function saveMessage(
   role: 'user' | 'assistant',
   content: string,
   messageType: string = 'conversation',
-  structuredOutput?: any
+  structuredOutput?: any,
+  isArtifact: boolean = false,
+  artifactId?: string
 ): Promise<string> {
   const { data: message, error } = await supabase
     .from('chat_messages')
@@ -133,7 +138,9 @@ async function saveMessage(
       role,
       content,
       message_type: messageType,
-      structured_output: structuredOutput
+      structured_output: structuredOutput,
+      is_artifact: isArtifact,
+      artifact_id: artifactId
     })
     .select('id')
     .single()
@@ -443,10 +450,20 @@ async function handleChatHistory(userId: string, sessionId: string) {
     })
   }
 
-  // Get all messages for this session
+  // Get all messages for this session with artifact information
   const { data: messages, error: messagesError } = await supabase
     .from('chat_messages')
-    .select('id, role, content, structured_output, message_type, created_at')
+    .select(`
+      id, 
+      role, 
+      content, 
+      structured_output, 
+      message_type, 
+      is_artifact, 
+      artifact_id, 
+      created_at,
+      artifacts(id, template_name, template_data, version, is_active)
+    `)
     .eq('session_id', sessionId)
     .order('created_at', { ascending: true })
 
@@ -600,20 +617,35 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Save assistant response
+    // Save assistant text response (without structured output)
     const messageId = await saveMessage(
       sessionId, 
       'assistant', 
       claudeResponse, 
-      body.message_type || 'conversation',
-      structuredOutput
+      body.message_type || 'conversation'
     )
 
-    // Save as artifact if it's a valid template and get artifact info
+    // Handle artifact creation with multi-message approach
     let artifactInfo: { id: string, action: string, version: number } | null = null
+    let artifactMessageId: string | null = null
+    
     if (structuredOutput && structuredOutput.questions && structuredOutput.title) {
       try {
+        // First save the artifact to get its ID
         artifactInfo = await saveArtifact(sessionId, messageId, structuredOutput, 'survey_template')
+        
+        // Then create a pure artifact message with null content
+        artifactMessageId = await saveMessage(
+          sessionId,
+          'assistant',
+          '', // Empty content for pure artifact message
+          'artifact',
+          null, // No structured output in message
+          true, // is_artifact = true
+          artifactInfo.id // artifact_id
+        )
+        
+        console.log(`Created artifact message: ${artifactMessageId} for artifact: ${artifactInfo.id}`)
       } catch (e) {
         console.log('Failed to save artifact:', e)
       }
@@ -623,8 +655,7 @@ Deno.serve(async (req) => {
     const response: ChatResponse = {
       response: claudeResponse,
       session_id: sessionId,
-      message_id: messageId,
-      artifact_json: structuredOutput || null
+      message_id: messageId
     }
 
     // Add artifact information if available
