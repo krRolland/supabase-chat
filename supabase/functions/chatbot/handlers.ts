@@ -178,6 +178,8 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
           message_id: afterMessageId,
           type: 'text',
           content: afterText,
+          role: 'assistant',
+          created_at: new Date().toISOString(),
           session_id: sessionId
         })
       }
@@ -195,6 +197,8 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
         message_id: messageId,
         type: 'text',
         content: cleanedResponse,
+        role: 'assistant',
+        created_at: new Date().toISOString(),
         session_id: sessionId
       })
     }
