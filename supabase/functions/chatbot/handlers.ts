@@ -117,6 +117,12 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
       try {
         const artifactInfo = await saveArtifact(sessionId, structuredOutput)
         
+        // Update the structured output with the real group_id (not "new")
+        const updatedStructuredOutput = {
+          ...structuredOutput,
+          group_id: artifactInfo.id // Replace "new" with actual UUID
+        }
+        
         const artifactMessageId = await saveMessage(
           sessionId,
           'assistant',
@@ -133,7 +139,7 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
           content: null,
           role: 'assistant',
           created_at: new Date().toISOString(),
-          artifact_data: structuredOutput,
+          artifact_data: updatedStructuredOutput, // Send back with real UUID
           artifact_info: {
             id: artifactInfo.id,
             artifact_id: artifactInfo.artifact_id,
