@@ -329,6 +329,7 @@ export async function getChatHistoryWithSession(userId: string, sessionId: strin
         message_id: msg.id,
         type: 'artifact',
         content: null,
+        role: msg.role,
         artifact_data: msg.artifacts.template_data,
         artifact_info: {
           id: msg.artifacts.artifact_group_id,
