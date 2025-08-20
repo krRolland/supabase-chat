@@ -124,7 +124,7 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
           'artifact',
           null, // No structured output in message
           true, // is_artifact = true
-          artifactInfo.id // artifact_id
+          artifactInfo.artifact_id // artifact_id
         )
         
         messages.push({
