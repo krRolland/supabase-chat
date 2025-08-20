@@ -302,6 +302,59 @@ export async function getChatSessions(userId: string): Promise<any[]> {
   return sessionsWithCounts
 }
 
+// Delete chat session and all associated data
+export async function deleteChatSession(userId: string, sessionId: string): Promise<void> {
+  if (!sessionId) {
+    throw new Error('session_id required')
+  }
+
+  // First verify user owns this session
+  const { data: session, error: sessionError } = await supabase
+    .from('chat_sessions')
+    .select('id')
+    .eq('id', sessionId)
+    .eq('user_id', userId)
+    .single()
+
+  if (sessionError || !session) {
+    throw new Error('Chat not found')
+  }
+
+  // Delete in order due to foreign key constraints:
+  // 1. Delete chat messages (references session_id)
+  const { error: messagesError } = await supabase
+    .from('chat_messages')
+    .delete()
+    .eq('session_id', sessionId)
+
+  if (messagesError) {
+    throw new Error(`Failed to delete messages: ${messagesError.message}`)
+  }
+
+  // 2. Delete artifacts (references session_id)
+  const { error: artifactsError } = await supabase
+    .from('artifacts')
+    .delete()
+    .eq('session_id', sessionId)
+
+  if (artifactsError) {
+    throw new Error(`Failed to delete artifacts: ${artifactsError.message}`)
+  }
+
+  // 3. Finally delete the session itself
+  const { error: sessionDeleteError } = await supabase
+    .from('chat_sessions')
+    .delete()
+    .eq('id', sessionId)
+    .eq('user_id', userId) // Double-check ownership
+
+  if (sessionDeleteError) {
+    throw new Error(`Failed to delete session: ${sessionDeleteError.message}`)
+  }
+
+  console.log(`Successfully deleted session ${sessionId} and all associated data`)
+}
+
 // Get chat history with session info
 export async function getChatHistoryWithSession(userId: string, sessionId: string): Promise<any> {
   if (!sessionId) {

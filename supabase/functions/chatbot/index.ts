@@ -4,7 +4,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 // Import modules
 import { validateConfig } from './config.ts'
 import { getCorsHeaders, createErrorResponse } from './utils.ts'
-import { handleChatList, handleChatHistory, handleChatMessage, authenticateUser } from './handlers.ts'
+import { handleChatList, handleChatHistory, handleChatDelete, handleChatMessage, authenticateUser } from './handlers.ts'
 import type { ChatRequest } from './types.ts'
 
 // Validate configuration on startup
@@ -44,6 +44,18 @@ Deno.serve(async (req) => {
         default:
           return createErrorResponse('Invalid action. Use ?action=list or ?action=history&session_id=xxx', 400)
       }
+    }
+
+    // Handle DELETE requests for chat deletion
+    if (req.method === 'DELETE') {
+      const url = new URL(req.url)
+      const sessionId = url.searchParams.get('session_id')
+      
+      if (!sessionId) {
+        return createErrorResponse('session_id is required for DELETE requests', 400)
+      }
+      
+      return await handleChatDelete(user.id, sessionId)
     }
 
     if (req.method !== 'POST') {

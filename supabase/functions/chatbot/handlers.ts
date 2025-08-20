@@ -1,6 +1,6 @@
 // Request handlers for the chatbot edge function
 
-import { supabase, getChatSessions, getChatHistoryWithSession, getOrCreateSession, getChatHistory, saveMessage, getSessionArtifacts, saveArtifact, getProjectContext, updateSessionTitle, isNewSession } from './supabase.ts'
+import { supabase, getChatSessions, getChatHistoryWithSession, getOrCreateSession, getChatHistory, saveMessage, getSessionArtifacts, saveArtifact, getProjectContext, updateSessionTitle, isNewSession, deleteChatSession } from './supabase.ts'
 import { createResponse, createErrorResponse, extractArtifact, generateSystemPrompt, cleanTextContent } from './utils.ts'
 import { callClaude, generateConversationTitle } from './claude.ts'
 import type { ChatRequest, ChatResponse, ProjectContext } from './types.ts'
@@ -20,6 +20,26 @@ export async function handleChatHistory(userId: string, sessionId: string): Prom
   try {
     const chatData = await getChatHistoryWithSession(userId, sessionId)
     return createResponse(chatData)
+  } catch (error) {
+    if (error.message === 'session_id required') {
+      return createErrorResponse('session_id required', 400)
+    }
+    if (error.message === 'Chat not found') {
+      return createErrorResponse('Chat not found', 404)
+    }
+    throw error
+  }
+}
+
+// Handle chat deletion functionality
+export async function handleChatDelete(userId: string, sessionId: string): Promise<Response> {
+  try {
+    await deleteChatSession(userId, sessionId)
+    return createResponse({ 
+      success: true, 
+      message: 'Chat deleted successfully',
+      session_id: sessionId 
+    })
   } catch (error) {
     if (error.message === 'session_id required') {
       return createErrorResponse('session_id required', 400)
