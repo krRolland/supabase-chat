@@ -96,15 +96,38 @@ POST /functions/v1/chatbot
 **Response:**
 ```json
 {
-  "response": "Chatbot's text response",
+  "messages": [
+    {
+      "message_id": "message_uuid",
+      "type": "text",
+      "content": "Chatbot's text response",
+      "role": "assistant",
+      "created_at": "2024-01-15T10:30:00Z",
+      "session_id": "session_uuid"
+    },
+    {
+      "message_id": "artifact_message_uuid",
+      "type": "artifact",
+      "content": null,
+      "role": "assistant",
+      "created_at": "2024-01-15T10:30:01Z",
+      "artifact_data": {
+        "title": "Survey Title",
+        "questions": [...],
+        "metadata": {...}
+      },
+      "artifact_info": {
+        "id": "artifact_group_uuid",
+        "artifact_id": "artifact_db_id",
+        "action": "created",
+        "version": 1,
+        "title": "Survey Title"
+      },
+      "session_id": "session_uuid"
+    }
+  ],
   "session_id": "session_uuid",
-  "message_id": "message_uuid",
-  "structured_output": {
-    // JSON survey template if generated
-    "title": "Survey Title",
-    "questions": [...],
-    "metadata": {...}
-  }
+  "total_messages": 2
 }
 ```
 
@@ -149,11 +172,31 @@ GET /functions/v1/chatbot?action=history&session_id=SESSION_UUID
   },
   "messages": [
     {
-      "id": "message_uuid",
-      "role": "user",
+      "message_id": "message_uuid",
+      "type": "text",
       "content": "Message content",
-      "type": "conversation",
-      "created_at": "2024-01-15T10:30:00Z"
+      "role": "user",
+      "created_at": "2024-01-15T10:30:00Z",
+      "session_id": "session_uuid"
+    },
+    {
+      "message_id": "artifact_message_uuid",
+      "type": "artifact",
+      "content": null,
+      "role": "assistant",
+      "artifact_data": {
+        "title": "Survey Template",
+        "questions": [...]
+      },
+      "artifact_info": {
+        "id": "artifact_group_uuid",
+        "artifact_id": "artifact_db_id",
+        "action": "created",
+        "version": 1,
+        "title": "Survey Template"
+      },
+      "created_at": "2024-01-15T10:30:01Z",
+      "session_id": "session_uuid"
     }
   ]
 }
