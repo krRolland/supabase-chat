@@ -23,14 +23,14 @@ export async function getOrCreateSession(userId: string, projectId?: string, ses
     }
   }
 
-  // Create new session
+  // Create new session with temporary title
   const { data: newSession, error } = await supabase
     .from('chat_sessions')
     .insert({
       user_id: userId,
       project_id: projectId,
       session_type: APP_CONFIG.defaultSessionType,
-      title: APP_CONFIG.defaultSessionTitle
+      title: 'New Chat...' // Temporary title, will be updated after first message
     })
     .select('id')
     .single()
@@ -40,6 +40,35 @@ export async function getOrCreateSession(userId: string, projectId?: string, ses
   }
 
   return newSession.id
+}
+
+// Update session title
+export async function updateSessionTitle(sessionId: string, title: string): Promise<void> {
+  const { error } = await supabase
+    .from('chat_sessions')
+    .update({ title: title })
+    .eq('id', sessionId)
+
+  if (error) {
+    throw new Error(`Failed to update session title: ${error.message}`)
+  }
+}
+
+// Check if session is new (has only temporary title and no messages)
+export async function isNewSession(sessionId: string): Promise<boolean> {
+  // Check if session has any messages
+  const { count, error } = await supabase
+    .from('chat_messages')
+    .select('*', { count: 'exact', head: true })
+    .eq('session_id', sessionId)
+
+  if (error) {
+    console.error('Error checking session message count:', error)
+    return false
+  }
+
+  // If no messages exist, it's a new session
+  return (count || 0) === 0
 }
 
 // Get chat history for context (excludes artifact messages)

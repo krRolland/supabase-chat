@@ -1,8 +1,8 @@
 // Request handlers for the chatbot edge function
 
-import { supabase, getChatSessions, getChatHistoryWithSession, getOrCreateSession, getChatHistory, saveMessage, getSessionArtifacts, saveArtifact, getProjectContext } from './supabase.ts'
+import { supabase, getChatSessions, getChatHistoryWithSession, getOrCreateSession, getChatHistory, saveMessage, getSessionArtifacts, saveArtifact, getProjectContext, updateSessionTitle, isNewSession } from './supabase.ts'
 import { createResponse, createErrorResponse, extractArtifact, generateSystemPrompt, cleanTextContent } from './utils.ts'
-import { callClaude } from './claude.ts'
+import { callClaude, generateConversationTitle } from './claude.ts'
 import type { ChatRequest, ChatResponse, ProjectContext } from './types.ts'
 
 // Handle chat list functionality
@@ -36,6 +36,9 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
   try {
     // Get or create session
     const sessionId = await getOrCreateSession(userId, body.project_id, body.session_id)
+
+    // Check if this is a new session before saving any messages
+    const isNewChat = await isNewSession(sessionId)
 
     // Get existing artifacts for context
     const existingArtifacts = await getSessionArtifacts(sessionId)
@@ -207,6 +210,19 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
         created_at: new Date().toISOString(),
         session_id: sessionId
       })
+    }
+
+    // Generate title for new sessions (after processing the first message)
+    if (isNewChat) {
+      try {
+        // This was a new session, generate and update the title
+        const generatedTitle = await generateConversationTitle(body.message)
+        await updateSessionTitle(sessionId, generatedTitle)
+        console.log(`Generated title for new session ${sessionId}: "${generatedTitle}"`)
+      } catch (titleError) {
+        // Don't fail the entire request if title generation fails
+        console.error('Failed to generate/update session title:', titleError)
+      }
     }
 
     // Return new multi-message response
