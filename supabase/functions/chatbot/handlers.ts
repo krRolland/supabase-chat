@@ -50,7 +50,7 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
     }
 
     // Save user message
-    await saveMessage(sessionId, 'user', body.message, body.type || 'conversation')
+    await saveMessage(sessionId, 'user', body.message, 'text')
 
     // Get chat history for context
     const chatHistory = await getChatHistory(sessionId) // Uses default limit from config
@@ -103,7 +103,7 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
           sessionId, 
           'assistant', 
           beforeText, 
-          body.type || 'conversation'
+          'text'
         )
         
         messages.push({
@@ -131,7 +131,6 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
           'assistant',
           '', // Empty content for pure artifact message
           'artifact',
-          null, // No structured output in message
           true, // is_artifact = true
           artifactInfo.artifact_id // artifact_id
         )
@@ -180,7 +179,7 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
           sessionId, 
           'assistant', 
           afterText, 
-          body.type || 'conversation'
+          'text'
         )
         
         messages.push({
@@ -199,7 +198,7 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
         sessionId, 
         'assistant', 
         cleanedResponse, 
-        body.type || 'conversation'
+        'text'
       )
       
       messages.push({

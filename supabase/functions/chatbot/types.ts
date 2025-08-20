@@ -33,7 +33,6 @@ export interface DatabaseMessage {
   session_id: string
   role: 'user' | 'assistant'
   content: string
-  structured_output?: any
   type: string
   is_artifact: boolean
   artifact_id?: string

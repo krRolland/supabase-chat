@@ -93,8 +93,7 @@ export async function saveMessage(
   sessionId: string,
   role: 'user' | 'assistant',
   content: string,
-  messageType: string = 'conversation',
-  structuredOutput?: any,
+  messageType: string = 'text',
   isArtifact: boolean = false,
   artifactId?: string
 ): Promise<string> {
@@ -105,7 +104,6 @@ export async function saveMessage(
       role,
       content,
       type: messageType,
-      structured_output: structuredOutput,
       is_artifact: isArtifact,
       artifact_id: artifactId
     })
@@ -336,7 +334,6 @@ export async function getChatHistoryWithSession(userId: string, sessionId: strin
       id, 
       role, 
       content, 
-      structured_output, 
       type, 
       is_artifact, 
       artifact_id, 
