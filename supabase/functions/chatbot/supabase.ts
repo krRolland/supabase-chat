@@ -355,6 +355,51 @@ export async function deleteChatSession(userId: string, sessionId: string): Prom
   console.log(`Successfully deleted session ${sessionId} and all associated data`)
 }
 
+// Update artifact data in-place (for auto-save, no new version)
+export async function updateArtifactData(
+  artifactGroupId: string,
+  templateData: any,
+  userId: string
+): Promise<void> {
+  try {
+    // First, find the latest version of this artifact group and verify user access
+    const { data: latestArtifact, error: findError } = await supabase
+      .from('artifacts')
+      .select('id, session_id, version, chat_sessions!inner(user_id)')
+      .eq('artifact_group_id', artifactGroupId)
+      .order('version', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (findError || !latestArtifact) {
+      throw new Error('Artifact not found')
+    }
+
+    // Verify user owns this artifact through the session
+    if (latestArtifact.chat_sessions.user_id !== userId) {
+      throw new Error('Unauthorized: User does not own this artifact')
+    }
+
+    // Update the template_data field in-place (no new version created)
+    const { error: updateError } = await supabase
+      .from('artifacts')
+      .update({ 
+        template_data: templateData,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', latestArtifact.id)
+
+    if (updateError) {
+      throw new Error(`Failed to update artifact: ${updateError.message}`)
+    }
+
+    console.log(`Successfully auto-saved artifact: ${artifactGroupId} (v${latestArtifact.version})`)
+  } catch (e) {
+    console.error('Error in updateArtifactData:', e)
+    throw e
+  }
+}
+
 // Get chat history with session info
 export async function getChatHistoryWithSession(userId: string, sessionId: string): Promise<any> {
   if (!sessionId) {

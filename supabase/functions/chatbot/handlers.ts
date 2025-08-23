@@ -1,6 +1,6 @@
 // Request handlers for the chatbot edge function
 
-import { supabase, getChatSessions, getChatHistoryWithSession, getOrCreateSession, getChatHistory, saveMessage, getSessionArtifacts, saveArtifact, getProjectContext, updateSessionTitle, isNewSession, deleteChatSession } from './supabase.ts'
+import { supabase, getChatSessions, getChatHistoryWithSession, getOrCreateSession, getChatHistory, saveMessage, getSessionArtifacts, saveArtifact, getProjectContext, updateSessionTitle, isNewSession, deleteChatSession, updateArtifactData } from './supabase.ts'
 import { createResponse, createErrorResponse, extractArtifact, generateSystemPrompt, cleanTextContent } from './utils.ts'
 import { callClaude, generateConversationTitle } from './claude.ts'
 import type { ChatRequest, ChatResponse, ProjectContext } from './types.ts'
@@ -254,6 +254,30 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
     return createResponse(response)
   } catch (error) {
     console.error('Chat message error:', error)
+    throw error
+  }
+}
+
+// Handle artifact auto-save functionality
+export async function handleArtifactAutoSave(
+  userId: string, 
+  artifactGroupId: string, 
+  templateData: any
+): Promise<Response> {
+  try {
+    await updateArtifactData(artifactGroupId, templateData, userId)
+    return createResponse({ 
+      success: true, 
+      message: 'Artifact auto-saved successfully',
+      artifact_id: artifactGroupId 
+    })
+  } catch (error) {
+    if (error.message === 'Artifact not found') {
+      return createErrorResponse('Artifact not found', 404)
+    }
+    if (error.message.includes('Unauthorized')) {
+      return createErrorResponse('Unauthorized access to artifact', 403)
+    }
     throw error
   }
 }

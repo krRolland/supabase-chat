@@ -4,7 +4,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 // Import modules
 import { validateConfig } from './config.ts'
 import { getCorsHeaders, createErrorResponse } from './utils.ts'
-import { handleChatList, handleChatHistory, handleChatDelete, handleChatMessage, authenticateUser } from './handlers.ts'
+import { handleChatList, handleChatHistory, handleChatDelete, handleChatMessage, handleArtifactAutoSave, authenticateUser } from './handlers.ts'
 import type { ChatRequest } from './types.ts'
 
 // Validate configuration on startup
@@ -56,6 +56,31 @@ Deno.serve(async (req) => {
       }
       
       return await handleChatDelete(user.id, sessionId)
+    }
+
+    // Handle PUT requests for artifact auto-save
+    if (req.method === 'PUT') {
+      const url = new URL(req.url)
+      const pathParts = url.pathname.split('/')
+      
+      // Check if this is an artifact auto-save request: /artifacts/{id}/autosave
+      if (pathParts.length >= 4 && pathParts[pathParts.length - 3] === 'artifacts' && pathParts[pathParts.length - 1] === 'autosave') {
+        const artifactGroupId = pathParts[pathParts.length - 2]
+        
+        if (!artifactGroupId) {
+          return createErrorResponse('Artifact ID is required', 400)
+        }
+        
+        const body = await req.json()
+        
+        if (!body.template_data) {
+          return createErrorResponse('template_data is required', 400)
+        }
+        
+        return await handleArtifactAutoSave(user.id, artifactGroupId, body.template_data)
+      }
+      
+      return createErrorResponse('Invalid PUT endpoint', 400)
     }
 
     if (req.method !== 'POST') {
