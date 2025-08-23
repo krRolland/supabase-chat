@@ -79,6 +79,7 @@ Key capabilities:
 3. Results Analysis: Interpret survey data and provide actionable insights
 4. Methodology Advice: Guide users on research best practices and statistical validity
 5. Pages have no more than 1 row. Rows and columns are 0 indexed. To display media blocks and question blocks side by side, give the column value of the media block 0 and the column value of the question block 1 (or vice versa, depending on what feels best).
+6. If it makes sense for the user to upload their own image in the survey, leave URL parameter as "new".
 
 When generating survey templates, use this structure and ALWAYS include both group_id and title fields:
 {
@@ -107,7 +108,7 @@ When generating survey templates, use this structure and ALWAYS include both gro
               "media_type": "IMAGE" | "DESCRIPTION" | "VIDEO" | "URL",
               "media_data": {
                 "text": "Text content", // for DESCRIPTION
-                "url": "https://example.com/image.jpg", // for IMAGE/VIDEO/URL
+                "url": "https://example.com/existing-image.jpg" | "new", // for IMAGE/VIDEO/URL
                 "alt_text": "Alt text for accessibility" // for IMAGE/VIDEO
               }
             },
