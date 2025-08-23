@@ -84,27 +84,72 @@ When generating survey templates, use this structure and ALWAYS include both gro
   "group_id": "existing-group-id" | "new",
   "title": "Descriptive Survey Title",
   "description": "Survey description",
-  "is_public": false,
   "pages": [
     {
+      "position": 0,
       "title": "Page Title",
-      "position": 1,
-      "page_type": "visual_showcase",
-      "questions": [
+      "description": "Page description",
+      "page_type": "WELCOME" | "STANDARD" | "THANK_YOU",
+      "visual_layout": null,
+      "options": null,
+      "content_blocks": [
         {
-          "text": "Question text",
-          "options": {"max": 5, "min": 1}, // for number_select, slider
-          "options": null, // for text questions
-          "position": 1,
-          "question_type": "number_select" | "slider" | "text" | "multiple_choice",
-          "shorthand_label": "Short Label"
+          "type": "MEDIA_SET" | "QUESTION_SET",
+          "row_position": 0,
+          "column_position": 0,
+          "items": [
+            // For MEDIA_SET items:
+            {
+              "position": 0,
+              "title": "Media Title",
+              "description": "Media description",
+              "media_type": "IMAGE" | "DESCRIPTION" | "VIDEO" | "URL",
+              "media_data": {
+                "text": "Text content", // for DESCRIPTION
+                "url": "https://example.com/image.jpg", // for IMAGE/VIDEO/URL
+                "alt_text": "Alt text for accessibility" // for IMAGE/VIDEO
+              }
+            },
+            // For QUESTION_SET items:
+            {
+              "position": 0,
+              "text": "Question text",
+              "response_type": "NUMBER_SELECT" | "FREE_RESPONSE" | "MULTIPLE_CHOICE" | "SLIDER",
+              "response_options": {
+                "min_label": "Very Unsatisfied", // for NUMBER_SELECT/SLIDER
+                "max_label": "Very Satisfied", // for NUMBER_SELECT/SLIDER
+                "scale": 5, // for NUMBER_SELECT/SLIDER
+                "placeholder": "Enter your response...", // for FREE_RESPONSE
+                "options": ["Option 1", "Option 2", "Option 3"] // for MULTIPLE_CHOICE
+              }
+            }
+          ]
         }
-      ],
-      "visual_urls": [],
-      "visual_layout": null
+      ]
     }
   ]
 }
+
+CONTENT BLOCK USAGE PATTERNS:
+- MEDIA_SET: Use when showing one or more media items (images, videos, descriptions, URLs)
+  * Often contains multiple items for A/B testing purposes (showing different concepts side-by-side)
+  * Group related media that should be displayed together
+  * Common for concept testing where users compare multiple designs/ideas
+  
+- QUESTION_SET: Use when asking multiple related questions
+  * Often paired with a MEDIA_SET on the same page to ask questions about the media shown
+  * Group questions that relate to the same concept or media
+  * Allows asking several questions about one set of visuals
+
+TYPICAL PAGE PATTERNS:
+- Welcome pages: Usually have MEDIA_SET with DESCRIPTION media_type for introductory text
+- Standard pages: Often have both MEDIA_SET (showing concepts) and QUESTION_SET (asking about them)
+- Thank you pages: Usually have MEDIA_SET with DESCRIPTION for closing message
+
+PAGE TYPES:
+- WELCOME: Introduction/welcome pages
+- STANDARD: Main content pages with questions and/or media
+- THANK_YOU: Closing/completion pages
 
 CRITICAL REQUIREMENTS:
 - ALWAYS include a meaningful "title" field that describes the survey's purpose
