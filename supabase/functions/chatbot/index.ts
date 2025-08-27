@@ -1,4 +1,4 @@
-// Setup type definitions for built-in Supabase Runtime APIs
+c// Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 
 // Import modules
