@@ -1,15 +1,26 @@
 // Utility functions for the chatbot edge function
 
-import { CORS_HEADERS } from './config.ts'
+import { ALLOWED_ORIGINS, CORS_METHODS, CORS_HEADERS_ALLOWED } from './config.ts'
 import type { SessionArtifact, ProjectContext } from './types.ts'
 
 // CORS Utility Functions
-export function getCorsHeaders(): Record<string, string> {
-  return { ...CORS_HEADERS }
+export function getCorsHeaders(requestOrigin?: string): Record<string, string> {
+  // Determine the allowed origin based on the request
+  const origin = requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin) 
+    ? requestOrigin 
+    : ALLOWED_ORIGINS[0]; // fallback to production domain
+  
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': CORS_METHODS,
+    'Access-Control-Allow-Headers': CORS_HEADERS_ALLOWED,
+    'Access-Control-Allow-Credentials': 'true',
+    'Content-Type': 'application/json'
+  };
 }
 
-export function createResponse(data: any, status: number = 200, additionalHeaders?: Record<string, string>): Response {
-  const headers = getCorsHeaders()
+export function createResponse(data: any, status: number = 200, additionalHeaders?: Record<string, string>, requestOrigin?: string): Response {
+  const headers = getCorsHeaders(requestOrigin)
   
   if (additionalHeaders) {
     Object.assign(headers, additionalHeaders)
@@ -23,9 +34,9 @@ export function createResponse(data: any, status: number = 200, additionalHeader
   })
 }
 
-export function createErrorResponse(error: string, status: number = 500, details?: string): Response {
+export function createErrorResponse(error: string, status: number = 500, details?: string, requestOrigin?: string): Response {
   const errorData = details ? { error, details } : { error }
-  return createResponse(errorData, status)
+  return createResponse(errorData, status, undefined, requestOrigin)
 }
 
 // Generic JSON extraction for artifacts

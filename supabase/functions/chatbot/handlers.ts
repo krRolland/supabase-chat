@@ -6,53 +6,53 @@ import { callClaude, generateConversationTitle } from './claude.ts'
 import type { ChatRequest, ChatResponse, ProjectContext } from './types.ts'
 
 // Handle chat list functionality
-export async function handleChatList(userId: string): Promise<Response> {
+export async function handleChatList(userId: string, requestOrigin?: string): Promise<Response> {
   try {
     const sessionsWithCounts = await getChatSessions(userId)
-    return createResponse({ chats: sessionsWithCounts })
+    return createResponse({ chats: sessionsWithCounts }, 200, undefined, requestOrigin)
   } catch (error) {
     throw new Error(`Failed to get chat list: ${error.message}`)
   }
 }
 
 // Handle chat history functionality
-export async function handleChatHistory(userId: string, sessionId: string): Promise<Response> {
+export async function handleChatHistory(userId: string, sessionId: string, requestOrigin?: string): Promise<Response> {
   try {
     const chatData = await getChatHistoryWithSession(userId, sessionId)
-    return createResponse(chatData)
+    return createResponse(chatData, 200, undefined, requestOrigin)
   } catch (error) {
     if (error.message === 'session_id required') {
-      return createErrorResponse('session_id required', 400)
+      return createErrorResponse('session_id required', 400, undefined, requestOrigin)
     }
     if (error.message === 'Chat not found') {
-      return createErrorResponse('Chat not found', 404)
+      return createErrorResponse('Chat not found', 404, undefined, requestOrigin)
     }
     throw error
   }
 }
 
 // Handle chat deletion functionality
-export async function handleChatDelete(userId: string, sessionId: string): Promise<Response> {
+export async function handleChatDelete(userId: string, sessionId: string, requestOrigin?: string): Promise<Response> {
   try {
     await deleteChatSession(userId, sessionId)
     return createResponse({ 
       success: true, 
       message: 'Chat deleted successfully',
       session_id: sessionId 
-    })
+    }, 200, undefined, requestOrigin)
   } catch (error) {
     if (error.message === 'session_id required') {
-      return createErrorResponse('session_id required', 400)
+      return createErrorResponse('session_id required', 400, undefined, requestOrigin)
     }
     if (error.message === 'Chat not found') {
-      return createErrorResponse('Chat not found', 404)
+      return createErrorResponse('Chat not found', 404, undefined, requestOrigin)
     }
     throw error
   }
 }
 
 // Handle main chat message processing
-export async function handleChatMessage(userId: string, body: ChatRequest): Promise<Response> {
+export async function handleChatMessage(userId: string, body: ChatRequest, requestOrigin?: string): Promise<Response> {
   try {
     // Get or create session
     const sessionId = await getOrCreateSession(userId, body.project_id, body.session_id)
@@ -251,7 +251,7 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
       total_messages: messages.length
     }
 
-    return createResponse(response)
+    return createResponse(response, 200, undefined, requestOrigin)
   } catch (error) {
     console.error('Chat message error:', error)
     throw error
@@ -262,7 +262,8 @@ export async function handleChatMessage(userId: string, body: ChatRequest): Prom
 export async function handleArtifactAutoSave(
   userId: string, 
   artifactGroupId: string, 
-  templateData: any
+  templateData: any,
+  requestOrigin?: string
 ): Promise<Response> {
   try {
     await updateArtifactData(artifactGroupId, templateData, userId)
@@ -270,13 +271,13 @@ export async function handleArtifactAutoSave(
       success: true, 
       message: 'Artifact auto-saved successfully',
       artifact_id: artifactGroupId 
-    })
+    }, 200, undefined, requestOrigin)
   } catch (error) {
     if (error.message === 'Artifact not found') {
-      return createErrorResponse('Artifact not found', 404)
+      return createErrorResponse('Artifact not found', 404, undefined, requestOrigin)
     }
     if (error.message.includes('Unauthorized')) {
-      return createErrorResponse('Unauthorized access to artifact', 403)
+      return createErrorResponse('Unauthorized access to artifact', 403, undefined, requestOrigin)
     }
     throw error
   }

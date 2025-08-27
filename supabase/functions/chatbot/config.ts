@@ -7,13 +7,17 @@ export const config = {
   anthropicApiKey: Deno.env.get('ANTHROPIC_API_KEY')!,
 }
 
-// CORS Configuration
-export const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Content-Type': 'application/json'
-}
+// CORS Configuration - Multi-environment support
+export const ALLOWED_ORIGINS = [
+  'https://panda-poll.com',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:3001'
+];
+
+export const CORS_METHODS = 'GET, POST, PUT, DELETE, OPTIONS';
+export const CORS_HEADERS_ALLOWED = 'authorization, x-client-info, apikey, content-type';
 
 // Claude API Configuration
 export const CLAUDE_CONFIG = {
