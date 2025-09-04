@@ -1,195 +1,11 @@
 // Request handlers for the question-rewriter edge function
 
-import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { config, CLAUDE_CONFIG, REWORD_PROMPT_TEMPLATE } from './config.ts'
-import type { QuestionRewordRequest, QuestionRewordResponse, QuestionSuggestion, DatabaseMessage, SessionArtifact } from './types.ts'
-
-// Initialize Supabase client
-const supabase = createClient(config.supabaseUrl, config.supabaseServiceKey)
-
-// CORS headers helper
-export function getCorsHeaders(origin?: string | null): HeadersInit {
-  const allowedOrigins = [
-    'https://panda-poll.com',
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:3001'
-  ]
-  
-  const corsOrigin = origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0]
-  
-  return {
-    'Access-Control-Allow-Origin': corsOrigin,
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Credentials': 'true',
-  }
-}
-
-// Error response helper
-export function createErrorResponse(message: string, status: number, details?: string, origin?: string | null): Response {
-  return new Response(
-    JSON.stringify({ 
-      error: message,
-      details: details || undefined
-    }),
-    {
-      status,
-      headers: {
-        'Content-Type': 'application/json',
-        ...getCorsHeaders(origin),
-      },
-    }
-  )
-}
-
-// Success response helper
-export function createResponse(data: any, status: number = 200, origin?: string | null): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      ...getCorsHeaders(origin),
-    },
-  })
-}
-
-// Authentication helper
-export async function authenticateUser(authHeader: string | null): Promise<any> {
-  if (!authHeader) {
-    throw new Error('Authorization required')
-  }
-
-  const { data: { user }, error: authError } = await supabase.auth.getUser(
-    authHeader.replace('Bearer ', '')
-  )
-
-  if (authError || !user) {
-    throw new Error('Invalid authorization')
-  }
-
-  return user
-}
-
-// Get chat history with token-based limiting (reusing chatbot logic)
-export async function getChatHistoryByTokens(sessionId: string): Promise<DatabaseMessage[]> {
-  const { data: messages, error } = await supabase
-    .from('chat_messages')
-    .select('*')
-    .eq('session_id', sessionId)
-    .order('created_at', { ascending: true })
-
-  if (error) {
-    throw new Error(`Failed to get chat history: ${error.message}`)
-  }
-
-  // Simple token estimation (roughly 4 characters per token)
-  const TOKEN_LIMIT = 8000 // Conservative limit for context
-  let totalTokens = 0
-  const filteredMessages: DatabaseMessage[] = []
-
-  // Process messages in reverse order (newest first) to keep recent context
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const message = messages[i]
-    const messageTokens = Math.ceil(message.content.length / 4)
-    
-    if (totalTokens + messageTokens > TOKEN_LIMIT) {
-      break
-    }
-    
-    totalTokens += messageTokens
-    filteredMessages.unshift(message) // Add to beginning to maintain chronological order
-  }
-
-  return filteredMessages
-}
-
-// Get session artifacts
-export async function getSessionArtifacts(sessionId: string): Promise<SessionArtifact[]> {
-  const { data: artifacts, error } = await supabase
-    .from('artifacts')
-    .select('artifact_group_id, title, version, template_data')
-    .eq('session_id', sessionId)
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    throw new Error(`Failed to get session artifacts: ${error.message}`)
-  }
-
-  return artifacts.map(artifact => ({
-    id: artifact.artifact_group_id,
-    title: artifact.title,
-    version: artifact.version,
-    template_data: artifact.template_data
-  }))
-}
-
-// Get specific artifact by ID
-export async function getArtifactById(artifactId: string, userId: string): Promise<SessionArtifact | null> {
-  const { data: artifact, error } = await supabase
-    .from('artifacts')
-    .select('artifact_group_id, title, version, template_data, session_id')
-    .eq('artifact_group_id', artifactId)
-    .order('version', { ascending: false })
-    .limit(1)
-    .single()
-
-  if (error) {
-    if (error.code === 'PGRST116') { // No rows returned
-      return null
-    }
-    throw new Error(`Failed to get artifact: ${error.message}`)
-  }
-
-  // Verify user has access to this artifact through the session
-  const { data: session, error: sessionError } = await supabase
-    .from('chat_sessions')
-    .select('user_id')
-    .eq('id', artifact.session_id)
-    .single()
-
-  if (sessionError || session.user_id !== userId) {
-    throw new Error('Unauthorized access to artifact')
-  }
-
-  return {
-    id: artifact.artifact_group_id,
-    title: artifact.title,
-    version: artifact.version,
-    template_data: artifact.template_data
-  }
-}
-
-// Call Claude API for question rewriting
-export async function callClaude(prompt: string): Promise<string> {
-  const response = await fetch(CLAUDE_CONFIG.apiUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': config.anthropicApiKey,
-      'anthropic-version': CLAUDE_CONFIG.apiVersion
-    },
-    body: JSON.stringify({
-      model: CLAUDE_CONFIG.model,
-      max_tokens: CLAUDE_CONFIG.maxTokens,
-      messages: [
-        {
-          role: 'user',
-          content: prompt
-        }
-      ]
-    })
-  })
-
-  if (!response.ok) {
-    const error = await response.text()
-    throw new Error(`Claude API error: ${response.status} - ${error}`)
-  }
-
-  const data = await response.json()
-  return data.content[0].text
-}
+import { REWORD_PROMPT_TEMPLATE } from './config.ts'
+import { authenticateUser } from '../_shared/auth.ts'
+import { createResponse, createErrorResponse } from '../_shared/responses.ts'
+import { getChatHistoryByTokens, getArtifactById } from '../_shared/database.ts'
+import { callClaude } from '../_shared/claude.ts'
+import type { QuestionRewordRequest, QuestionRewordResponse, QuestionSuggestion, DatabaseMessage } from './types.ts'
 
 // Build the prompt for Claude
 export function buildRewordPrompt(
@@ -279,7 +95,7 @@ export function parseSuggestions(claudeResponse: string): QuestionSuggestion[] {
 export async function handleQuestionReword(
   userId: string,
   request: QuestionRewordRequest,
-  origin?: string | null
+  origin?: string
 ): Promise<Response> {
   try {
     // Get the artifact to understand survey context
@@ -294,8 +110,8 @@ export async function handleQuestionReword(
     // Build the prompt for Claude
     const prompt = buildRewordPrompt(request.question_text, artifact, chatHistory)
 
-    // Call Claude
-    const claudeResponse = await callClaude(prompt)
+    // Call Claude with a lower token limit for question rewriting
+    const claudeResponse = await callClaude(prompt, 2000)
 
     // Parse suggestions from Claude's response
     const suggestions = parseSuggestions(claudeResponse)
@@ -306,7 +122,7 @@ export async function handleQuestionReword(
       suggestions: suggestions
     }
 
-    return createResponse(response, 200, origin)
+    return createResponse(response, 200, undefined, origin)
 
   } catch (error) {
     console.error('Question reword error:', error)
@@ -322,3 +138,8 @@ export async function handleQuestionReword(
     return createErrorResponse('Internal server error', 500, error.message, origin)
   }
 }
+
+// Re-export shared functions for the index.ts file
+export { authenticateUser } from '../_shared/auth.ts'
+export { createErrorResponse } from '../_shared/responses.ts'
+export { getCorsHeaders } from '../_shared/cors.ts'

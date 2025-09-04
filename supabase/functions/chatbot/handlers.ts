@@ -2,6 +2,7 @@
 
 import { supabase, getChatSessions, getChatHistoryWithSession, getOrCreateSession, getChatHistory, getChatHistoryByTokens, saveMessage, getSessionArtifacts, saveArtifact, getProjectContext, updateSessionTitle, isNewSession, deleteChatSession, updateArtifactData } from './supabase.ts'
 import { createResponse, createErrorResponse, extractArtifact, generateSystemPrompt, cleanTextContent, estimateTokens, estimateMessageTokens } from './utils.ts'
+import { authenticateUser } from '../_shared/auth.ts'
 import { callClaude, generateConversationTitle } from './claude.ts'
 import type { ChatRequest, ChatResponse, ProjectContext } from './types.ts'
 
@@ -286,21 +287,4 @@ export async function handleArtifactAutoSave(
     }
     throw error
   }
-}
-
-// Authentication middleware
-export async function authenticateUser(authHeader: string | null): Promise<any> {
-  if (!authHeader) {
-    throw new Error('Authorization required')
-  }
-
-  const { data: { user }, error: authError } = await supabase.auth.getUser(
-    authHeader.replace('Bearer ', '')
-  )
-
-  if (authError || !user) {
-    throw new Error('Invalid authorization')
-  }
-
-  return user
 }

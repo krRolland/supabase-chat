@@ -1,31 +1,14 @@
-// Configuration for the question-rewriter edge function
+// Configuration for the question-rewriter edge function - now imports from shared
 
-// Environment configuration
-export const config = {
-  anthropicApiKey: Deno.env.get('ANTHROPIC_API_KEY')!,
-  supabaseUrl: Deno.env.get('SUPABASE_URL')!,
-  supabaseServiceKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-}
-
-// CORS Configuration
-export const ALLOWED_ORIGINS = [
-  'https://panda-poll.com',
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'http://127.0.0.1:3000',
-  'http://127.0.0.1:3001'
-];
-
-export const CORS_METHODS = 'GET, POST, PUT, DELETE, OPTIONS';
-export const CORS_HEADERS_ALLOWED = 'authorization, x-client-info, apikey, content-type';
-
-// Claude API configuration
-export const CLAUDE_CONFIG = {
-  apiUrl: 'https://api.anthropic.com/v1/messages',
-  apiVersion: '2023-06-01',
-  model: 'claude-3-5-sonnet-20241022',
-  maxTokens: 2000
-}
+// Re-export shared configuration
+export { 
+  config, 
+  ALLOWED_ORIGINS, 
+  CORS_METHODS, 
+  CORS_HEADERS_ALLOWED, 
+  CLAUDE_CONFIG, 
+  validateConfig 
+} from '../_shared/config.ts'
 
 // Configurable prompt template for question rewriting
 export const REWORD_PROMPT_TEMPLATE = `You are an expert survey methodologist specializing in question design and bias reduction. Your task is to analyze a survey question and provide exactly 5 improved alternatives.
@@ -56,18 +39,3 @@ Respond with a JSON object in this exact format:
 }
 
 Ensure you provide exactly 5 suggestions with varied improvement types. The confidence should be a decimal between 0.0 and 1.0.`
-
-// Validate configuration on startup
-export function validateConfig() {
-  const requiredVars = [
-    'ANTHROPIC_API_KEY',
-    'SUPABASE_URL', 
-    'SUPABASE_SERVICE_ROLE_KEY'
-  ]
-  
-  const missing = requiredVars.filter(varName => !Deno.env.get(varName))
-  
-  if (missing.length > 0) {
-    throw new Error(`Missing required environment variables: ${missing.join(', ')}`)
-  }
-}
