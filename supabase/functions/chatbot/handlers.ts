@@ -1,7 +1,7 @@
 // Request handlers for the chatbot edge function
 
-import { supabase, getChatSessions, getChatHistoryWithSession, getOrCreateSession, getChatHistory, saveMessage, getSessionArtifacts, saveArtifact, getProjectContext, updateSessionTitle, isNewSession, deleteChatSession, updateArtifactData } from './supabase.ts'
-import { createResponse, createErrorResponse, extractArtifact, generateSystemPrompt, cleanTextContent } from './utils.ts'
+import { supabase, getChatSessions, getChatHistoryWithSession, getOrCreateSession, getChatHistory, getChatHistoryByTokens, saveMessage, getSessionArtifacts, saveArtifact, getProjectContext, updateSessionTitle, isNewSession, deleteChatSession, updateArtifactData } from './supabase.ts'
+import { createResponse, createErrorResponse, extractArtifact, generateSystemPrompt, cleanTextContent, estimateTokens, estimateMessageTokens } from './utils.ts'
 import { callClaude, generateConversationTitle } from './claude.ts'
 import type { ChatRequest, ChatResponse, ProjectContext } from './types.ts'
 
@@ -72,8 +72,13 @@ export async function handleChatMessage(userId: string, body: ChatRequest, reque
     // Save user message
     await saveMessage(sessionId, 'user', body.message, 'text')
 
-    // Get chat history for context
-    const chatHistory = await getChatHistory(sessionId) // Uses default limit from config
+    // Get chat history for context using token-based approach
+    const chatHistory = await getChatHistoryByTokens(sessionId)
+
+    // Calculate token usage for logging
+    const historyTokens = chatHistory.reduce((sum, msg) => sum + estimateMessageTokens(msg), 0)
+    const currentMessageTokens = estimateTokens(body.message)
+    console.log(`Context: ${historyTokens} history + ${currentMessageTokens} current = ${historyTokens + currentMessageTokens} total tokens`)
 
     // Prepare messages for Claude
     const claudeMessages = chatHistory.map(msg => ({

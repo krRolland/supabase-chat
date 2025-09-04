@@ -10,6 +10,7 @@ export const config = {
 // CORS Configuration - Multi-environment support
 export const ALLOWED_ORIGINS = [
   'https://panda-poll.com',
+  'https://www.panda-poll.com',
   'http://localhost:3000',
   'http://localhost:3001',
   'http://127.0.0.1:3000',
@@ -29,7 +30,15 @@ export const CLAUDE_CONFIG = {
 
 // Application Configuration
 export const APP_CONFIG = {
-  chatHistoryLimit: 8, // Number of messages to include in context
+  // Token-based memory management (replaces chatHistoryLimit)
+  chatHistoryTokenLimit: 12000,    // Tokens for chat history
+  contextTokenBudget: 18000,       // Total context (system + history)
+  responseTokenLimit: 4000,        // Reserved for Claude's response
+  maxMessagesAbsolute: 50,         // Safety limit to prevent runaway queries
+  
+  // Legacy support (kept for backwards compatibility)
+  chatHistoryLimit: 8,             // Fallback if token-based system fails
+  
   defaultArtifactType: 'survey_template',
   defaultSessionType: 'general',
   defaultSessionTitle: 'New Chat Session'

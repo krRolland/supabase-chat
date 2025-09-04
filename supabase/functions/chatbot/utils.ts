@@ -1,6 +1,7 @@
 // Utility functions for the chatbot edge function
 
 import { ALLOWED_ORIGINS, CORS_METHODS, CORS_HEADERS_ALLOWED } from './config.ts'
+import type { DatabaseMessage } from './types.ts'
 import type { SessionArtifact, ProjectContext } from './types.ts'
 
 // CORS Utility Functions
@@ -216,4 +217,19 @@ export function cleanTextContent(text: string): string {
     .replace(/JSON survey template/gi, 'survey template')
     .replace(/JSON template/gi, 'template')
     .trim()
+}
+
+// Token estimation utilities for memory management
+export function estimateTokens(text: string): number {
+  if (!text) return 0
+  // Conservative estimation: ~3.5 chars per token for mixed content
+  // This accounts for punctuation, spaces, and varied text types
+  return Math.ceil(text.length / 3.5)
+}
+
+export function estimateMessageTokens(message: DatabaseMessage): number {
+  const contentTokens = estimateTokens(message.content || '')
+  // Add overhead for role, formatting, metadata, etc.
+  const overhead = 10
+  return contentTokens + overhead
 }

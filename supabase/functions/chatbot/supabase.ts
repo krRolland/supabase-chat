@@ -2,6 +2,7 @@
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { config, APP_CONFIG } from './config.ts'
+import { estimateMessageTokens } from './utils.ts'
 import type { DatabaseMessage, SessionArtifact, ArtifactInfo } from './types.ts'
 
 // Initialize Supabase client
@@ -86,6 +87,48 @@ export async function getChatHistory(sessionId: string, limit: number = APP_CONF
   }
 
   return (messages || []).reverse() // Reverse to get chronological order
+}
+
+// Get chat history by token budget (new token-based approach)
+export async function getChatHistoryByTokens(
+  sessionId: string, 
+  maxTokens: number = APP_CONFIG.chatHistoryTokenLimit
+): Promise<DatabaseMessage[]> {
+  // Get more messages than we need, then filter by tokens
+  const { data: messages, error } = await supabase
+    .from('chat_messages')
+    .select('*')
+    .eq('session_id', sessionId)
+    .eq('is_artifact', false) // Only get text messages for context
+    .order('created_at', { ascending: false })
+    .limit(APP_CONFIG.maxMessagesAbsolute)
+
+  if (error) {
+    throw new Error(`Failed to get chat history: ${error.message}`)
+  }
+
+  if (!messages || messages.length === 0) {
+    return []
+  }
+
+  // Select messages within token budget, starting from most recent
+  const selectedMessages: DatabaseMessage[] = []
+  let totalTokens = 0
+
+  for (const message of messages) {
+    const messageTokens = estimateMessageTokens(message)
+    
+    if (totalTokens + messageTokens <= maxTokens) {
+      selectedMessages.unshift(message) // Add to beginning for chronological order
+      totalTokens += messageTokens
+    } else {
+      // Stop when we hit the limit
+      break
+    }
+  }
+
+  console.log(`Selected ${selectedMessages.length} messages using ${totalTokens}/${maxTokens} tokens`)
+  return selectedMessages
 }
 
 // Save message to database

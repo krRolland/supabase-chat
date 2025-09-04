@@ -376,7 +376,7 @@ Generated templates follow this structure:
 - Database operations use Supabase client with RLS policies
 - Claude API integration uses the latest Anthropic API format
 - Structured output detection uses regex pattern matching
-- Chat history is limited to last 8 messages for context window management
+- Chat history uses intelligent token-based memory management (up to 12,000 tokens)
 
 ## 📝 Safe to Modify
 
