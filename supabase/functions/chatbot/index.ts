@@ -4,7 +4,8 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 // Import modules
 import { validateConfig } from './config.ts'
 import { getCorsHeaders, createErrorResponse } from './utils.ts'
-import { handleChatList, handleChatHistory, handleChatDelete, handleChatMessage, handleArtifactAutoSave, authenticateUser } from './handlers.ts'
+import { handleChatList, handleChatHistory, handleChatDelete, handleChatMessage, handleArtifactAutoSave } from './handlers.ts'
+import { authenticateUser } from '../_shared/auth.ts'
 import type { ChatRequest } from './types.ts'
 
 // Validate configuration on startup
