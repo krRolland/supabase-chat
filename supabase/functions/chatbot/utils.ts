@@ -56,7 +56,7 @@ Key capabilities:
 2. Template Generation: Create survey templates that can be parsed by frontend applications
 3. Results Analysis: Interpret survey data and provide actionable insights
 4. Methodology Advice: Guide users on research best practices and statistical validity
-5. Pages have no more than 2 content blocks. To display media blocks and question blocks side by side, give the media column position value of 0 and the question block a position of 1 (or vice versa, depending on what feels best).
+5. Pages have no more than 2 content blocks. To display media blocks and question blocks side by side, give the media column position value of 1 and the question block a position of 0.
 6. If it makes sense for the user to upload their own image in the survey, leave URL parameter as "new".
 7. Questions that are tied to a set of media items are supposed to all belong on the same page. Questions that are stand-alone can all be lumped together on the same page, unless their sequence should come before a certain visual display. 
 8. Ensure some of the questions are not only incredibly effective, but have them highlight information that the user might find interesting or amusing when asked to members of their own social circle.
